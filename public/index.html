@@ -6,6 +6,7 @@
   <title>Micropage E-Sparepart System</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .fade-up{animation:fadeUp .4s ease-out both}
@@ -15,12 +16,41 @@
     .shake{animation:shake .4s ease-in-out}
     @keyframes pop{0%{transform:scale(1)}50%{transform:scale(.97)}100%{transform:scale(1)}}
     .pop:active{animation:pop .12s ease-out}
+    /* Tour Guide */
+    .tour-overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center}
+    .tour-overlay.active{display:flex}
+    .tour-spotlight{position:absolute;border:3px solid #3b82f6;border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.6),0 0 30px rgba(59,130,246,.4);pointer-events:none;transition:all .4s cubic-bezier(.4,0,.2,1);z-index:1001}
+    .tour-card{position:relative;z-index:1002;background:#0f172a;border:1px solid #1e293b;border-radius:20px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 25px 60px rgba(0,0,0,.5)}
   </style>
 </head>
 <body class="bg-slate-950 min-h-screen antialiased">
 
   <!-- TOAST CONTAINER -->
   <div id="toast-box" class="fixed top-5 right-5 z-[999] flex flex-col gap-3 pointer-events-none"></div>
+
+  <!-- TOUR GUIDE OVERLAY -->
+  <div id="tour-overlay" class="tour-overlay">
+    <div id="tour-spotlight" class="tour-spotlight"></div>
+    <div class="tour-card">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+          <i data-lucide="map" class="text-white" style="width:16px;height:16px"></i>
+        </div>
+        <span id="tour-title" class="text-white font-extrabold text-sm"></span>
+      </div>
+      <p id="tour-desc" class="text-slate-300 text-sm leading-relaxed mb-4"></p>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span id="tour-step" class="text-[11px] text-slate-500 font-bold"></span>
+          <div id="tour-dots" class="flex gap-1"></div>
+        </div>
+        <div class="flex gap-2">
+          <button id="tour-skip" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-bold transition-colors">Lewati</button>
+          <button id="tour-next" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold transition-colors">Lanjut</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ======================== LOGIN ======================== -->
   <section id="login-section" class="min-h-screen flex items-center justify-center relative overflow-hidden">
@@ -62,6 +92,13 @@
               class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all"
               placeholder="Masukkan password" />
           </div>
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input id="chk-remember" type="checkbox"
+                class="w-4 h-4 rounded border-slate-600 bg-slate-800/60 text-blue-500 focus:ring-blue-500/40 cursor-pointer" />
+              <span class="text-xs text-slate-400">Ingat saya</span>
+            </label>
+          </div>
           <button id="btn-login" type="submit"
             class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm tracking-wide transition-all pop focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-40 disabled:cursor-not-allowed mt-2">
             <span id="lbl-masuk">MASUK</span>
@@ -96,7 +133,7 @@
           </div>
         </div>
         <!-- Kanan: Logout -->
-        <button id="btn-logout"
+        <button id="btn-logout" type="button"
           class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-red-400 text-xs font-bold transition-all pop border border-slate-700 hover:border-red-500/30 shrink-0">
           <span class="flex items-center gap-1.5"><i data-lucide="log-out" style="width:14px;height:14px"></i> Logout</span>
         </button>
@@ -111,6 +148,71 @@
         <p id="greet-title" class="text-2xl sm:text-3xl font-black text-white leading-tight"></p>
         <p class="text-sm text-slate-400 mt-1 font-medium">Selamat bertugas. Pantau ketersediaan sparepart dan kelola pengajuan dengan mudah.</p>
       </div>
+
+      <!-- Ringkasan Stok Real-time (KPI) -->
+      <section id="kpi-section" class="hidden fade-up space-y-4">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h3 class="text-white font-bold text-sm uppercase tracking-wider">Ringkasan Stok Real-time</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">Klik kartu untuk melihat daftar item</p>
+          </div>
+          <button id="btn-kpi-refresh" type="button"
+            class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold transition-colors flex items-center gap-1.5 shrink-0">
+            <i data-lucide="refresh-cw" style="width:13px;height:13px"></i> Refresh
+          </button>
+        </div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <button type="button" data-stock="all"
+            class="text-left rounded-2xl bg-slate-900 border border-slate-800 hover:border-sky-500/50 p-4 transition-all pop">
+            <div class="flex items-center justify-between">
+              <i data-lucide="package" class="text-sky-400" style="width:18px;height:18px"></i>
+              <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Item</span>
+            </div>
+            <p id="kpi-total" class="text-2xl font-black text-white mt-2">-</p>
+            <p class="text-[11px] font-semibold text-slate-400 mt-0.5">Total Sparepart</p>
+          </button>
+          <button type="button" data-stock="critical"
+            class="text-left rounded-2xl bg-slate-900 border border-slate-800 hover:border-rose-500/50 p-4 transition-all pop">
+            <div class="flex items-center justify-between">
+              <i data-lucide="alert-triangle" class="text-rose-400" style="width:18px;height:18px"></i>
+              <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Kritis</span>
+            </div>
+            <p id="kpi-critical" class="text-2xl font-black text-rose-400 mt-2">-</p>
+            <p class="text-[11px] font-semibold text-slate-400 mt-0.5">Critical Part</p>
+          </button>
+          <button type="button" data-stock="low"
+            class="text-left rounded-2xl bg-slate-900 border border-slate-800 hover:border-amber-500/50 p-4 transition-all pop">
+            <div class="flex items-center justify-between">
+              <i data-lucide="trending-down" class="text-amber-400" style="width:18px;height:18px"></i>
+              <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">≤ Min</span>
+            </div>
+           <p id="kpi-low" class="text-2xl font-black text-amber-400 mt-2 flex items-center gap-2">-<span id="kpi-alert" class="text-[11px] font-bold bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded"></span></p>
+             <p class="text-[11px] font-semibold text-slate-400 mt-0.5">Stok Rendah (<span id="kpi-alert-n">0</span> di bawah min)</p>
+          </button>
+          <button type="button" data-stock="out"
+            class="text-left rounded-2xl bg-slate-900 border border-slate-800 hover:border-rose-500/50 p-4 transition-all pop">
+            <div class="flex items-center justify-between">
+              <i data-lucide="package-x" class="text-rose-500" style="width:18px;height:18px"></i>
+              <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Habis</span>
+            </div>
+            <p id="kpi-out" class="text-2xl font-black text-rose-500 mt-2">-</p>
+            <p class="text-[11px] font-semibold text-slate-400 mt-0.5">Stok Kosong</p>
+          </button>
+        </div>
+
+        <!-- Panel item perlu segera dipesan -->
+        <div id="low-stock-panel" class="hidden rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-amber-500/5">
+            <div class="flex items-center gap-2">
+              <i data-lucide="bell-ring" class="text-amber-400" style="width:16px;height:16px"></i>
+              <span class="text-white font-bold text-xs uppercase tracking-wider">Perlu Segera Dipesan</span>
+            </div>
+            <button type="button" data-stock="low"
+              class="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition-colors">Lihat semua →</button>
+          </div>
+          <div id="low-stock-list" class="divide-y divide-slate-800"></div>
+        </div>
+      </section>
 
       <!-- Search Bar -->
       <div class="max-w-md">
@@ -137,18 +239,416 @@
     </footer>
   </section>
 
+  <!-- ======================== MODAL: DAFTAR STOK ======================== -->
+  <div id="modal-stok" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeModal('modal-stok')"></div>
+    <div class="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[88vh] fade-up">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+        <div>
+          <h3 id="stok-modal-title" class="text-white font-bold text-lg leading-tight">Daftar Stok Sparepart</h3>
+          <p id="stok-modal-sub" class="text-slate-400 text-xs mt-0.5">Data real-time dari database lokal</p>
+        </div>
+        <button type="button" onclick="closeModal('modal-stok')"
+          class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors">
+          <i data-lucide="x" style="width:18px;height:18px"></i>
+        </button>
+      </div>
+      <div class="flex-1 overflow-y-auto">
+        <div class="sticky top-0 z-10 bg-slate-900 px-6 pt-5 pb-3 border-b border-slate-800 flex flex-wrap items-center gap-3">
+          <div class="relative flex-1 min-w-[200px]">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" style="width:15px;height:15px"></i>
+            <input id="stok-search" type="text" placeholder="Cari item code / deskripsi / lokasi..."
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors">
+          </div>
+          <select id="stok-filter"
+            class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors">
+            <option value="all">Semua Item</option>
+            <option value="critical">Kritis</option>
+            <option value="low">Stok Rendah (&le; Min)</option>
+            <option value="out">Stok Habis</option>
+          </select>
+          <button type="button" id="btn-stok-xlsx"
+            class="px-3 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors inline-flex items-center gap-1.5">
+            <i data-lucide="file-spreadsheet" style="width:14px;height:14px"></i> Excel
+          </button>
+          <button type="button" id="btn-stok-export"
+            class="px-3 py-2 rounded-lg text-xs font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors inline-flex items-center gap-1.5">
+            <i data-lucide="download" style="width:14px;height:14px"></i> CSV
+          </button>
+        </div>
+        <div class="px-6 pt-3 text-[11px] text-slate-400"><span id="stok-count">0</span> item ditemukan</div>
+        <div class="px-6 pt-3 pb-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left border-collapse min-w-[680px]">
+              <thead>
+                <tr class="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-700">
+                  <th class="px-4 py-3 font-semibold">Item Code</th>
+                  <th class="px-4 py-3 font-semibold">Deskripsi</th>
+                  <th class="px-4 py-3 font-semibold text-right">Qty On Hand</th>
+                  <th class="px-4 py-3 font-semibold text-right">Min</th>
+                  <th class="px-4 py-3 font-semibold text-right">Max</th>
+                  <th class="px-4 py-3 font-semibold">Lokasi Rak</th>
+                  <th class="px-4 py-3 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-stok"></tbody>
+            </table>
+          </div>
+          <div id="stok-pagination" class="flex items-center justify-between flex-wrap gap-2 mt-4"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== MODAL: FORM BQ ======================== -->
+  <div id="modal-bq" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeModal('modal-bq')"></div>
+    <div class="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-y-auto fade-up">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 sticky top-0 bg-slate-900">
+        <div>
+          <h3 class="text-white font-bold text-lg leading-tight">Form Pengajuan BQ</h3>
+          <p class="text-slate-400 text-xs mt-0.5">Lengkapi spesifikasi untuk pengajuan barang</p>
+        </div>
+        <button type="button" onclick="closeModal('modal-bq')"
+          class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors">
+          <i data-lucide="x" style="width:18px;height:18px"></i>
+        </button>
+      </div>
+      <form id="form-bq" class="p-6 space-y-4">
+        <div>
+           <label for="f-itemcode" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Item Code</label>
+           <select id="f-itemcode"
+             class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all">
+             <option value="">-- Pilih Item Code --</option>
+           </select>
+           <p class="text-[11px] text-slate-500 mt-1.5">Pilih dari daftar sparepart terpusat agar kode tidak salah ketik. Kosongkan jika Jasa.</p>
+        </div>
+        <div>
+          <label for="f-qty" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Qty Diminta</label>
+          <input id="f-qty" type="number" min="1" step="1" required
+            class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all"
+            placeholder="Contoh: 2" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="f-uom" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Satuan (UoM)</label>
+            <input id="f-uom" type="text" required list="lst-uom"
+              class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all"
+              placeholder="Pcs / Set / Pack" />
+            <datalist id="lst-uom">
+              <option value="Pcs"></option>
+              <option value="Set"></option>
+              <option value="Pack"></option>
+              <option value="Unit"></option>
+              <option value="Meter"></option>
+              <option value="Liter"></option>
+            </datalist>
+          </div>
+          <div>
+            <label for="f-purpose" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Purpose</label>
+            <select id="f-purpose" required
+              class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all">
+              <option value="">-- Pilih Purpose --</option>
+              <option value="EJO">EJO (Engineering Job Order)</option>
+              <option value="Consumable">Consumable</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="f-no-ejo" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">No. EJO</label>
+            <input id="f-no-ejo" type="text" required
+              class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all"
+              placeholder="Contoh: EJO/2026/09/001" />
+          </div>
+          <div>
+            <label for="f-mesin-area" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Mesin / Area</label>
+            <input id="f-mesin-area" type="text" required
+              class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all"
+              placeholder="Contoh: Capping VCM200 / Lini 2" />
+          </div>
+         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="f-jenis" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Jenis Pengajuan</label>
+            <select id="f-jenis" required class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all">
+              <option value="sparepart" selected>Sparepart</option>
+              <option value="jasa">Jasa (JA/BR)</option>
+            </select>
+            <p class="text-[11px] text-slate-500 mt-1.5">Jika Jasa, item code tidak diperlukan.</p>
+          </div>
+          <div>
+            <label for="f-urgency" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Status Urgensi</label>
+            <select id="f-urgency" class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all">
+              <option value="Normal" selected>Normal</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+            <p class="text-[11px] text-slate-500 mt-1.5">Pilih Urgent jika pengajuan ini mendesak.</p>
+          </div>
+        </div>
+        <div id="f-jasa-box" class="hidden">
+          <label for="f-jasa-ket" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Keterangan Jasa</label>
+          <textarea id="f-jasa-ket" rows="3"
+            class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all resize-none"
+            placeholder="Uraian singkat jasa yang dibutuhkan…"></textarea>
+        </div>
+        <div>
+           <label for="f-merk" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Merk (opsional)</label>
+          <input id="f-merk" type="text"
+            class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all"
+            placeholder="Contoh: SKF / Festo (kosongkan jika belum tahu)" />
+        </div>
+        <div>
+          <label for="f-spesifikasi" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Spesifikasi Lengkap</label>
+          <textarea id="f-spesifikasi" rows="4" required
+            class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all resize-none"
+            placeholder="Tipe, dimensi, material, P/N dari mesin…"></textarea>
+        </div>
+        <div>
+          <label for="f-referensi" class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 block">Referensi / Penawaran (opsional)</label>
+          <input id="f-referensi" type="url"
+            class="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-white text-sm placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all"
+            placeholder="Link penawaran supplier (opsional)" />
+        </div>
+        <button id="btn-kirim-bq" type="submit"
+          class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm tracking-wide transition-all pop focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-40 disabled:cursor-not-allowed">
+          KIRIM PENGAJUAN
+        </button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ==================== MODAL: BQ SUMMARY ==================== -->
+  <div id="modal-bqsummary" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeModal('modal-bqsummary')"></div>
+    <div class="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh] overflow-y-auto fade-up">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 sticky top-0 bg-slate-900 rounded-t-2xl">
+        <div>
+          <h3 class="text-white font-bold text-lg">BQ Summary</h3>
+          <p class="text-slate-400 text-xs mt-0.5">Ringkasan & status seluruh pengajuan BQ</p>
+        </div>
+        <button type="button" onclick="closeModal('modal-bqsummary')"
+          class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors shrink-0">
+          <i data-lucide="x" style="width:18px;height:18px"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-6" id="bqsummary-body">
+        <div class="text-center text-slate-400 text-sm py-8">Memuat data…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== MODAL: APPROVAL & MONITORING (MANAGER) ======================== -->
+  <div id="modal-approval" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeModal('modal-approval')"></div>
+    <div class="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[92vh] fade-up">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 sticky top-0 bg-slate-900 rounded-t-2xl">
+        <div>
+          <h3 class="text-white font-bold text-lg leading-tight">Monitoring &amp; Approval BQ</h3>
+          <p class="text-slate-400 text-xs mt-0.5">Approval 2 tahap (Supervisor → Manager) - otomatis refresh tiap 20 detik</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-approval-refresh" type="button"
+            class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center gap-1.5">
+            <i data-lucide="refresh-cw" style="width:14px;height:14px"></i> Refresh
+          </button>
+          <button type="button" onclick="closeModal('modal-approval')"
+            class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors">
+            <i data-lucide="x" style="width:18px;height:18px"></i>
+          </button>
+        </div>
+      </div>
+      <!-- Toolbar: cari / filter / export -->
+      <div class="sticky top-0 z-10 bg-slate-900 px-6 pt-4 pb-3 border-b border-slate-800 flex flex-wrap items-center gap-3">
+        <div class="relative flex-1 min-w-[200px]">
+          <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" style="width:15px;height:15px"></i>
+          <input id="approval-search" type="text" placeholder="Cari no. registrasi / teknisi / item / EJO..."
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors">
+        </div>
+        <select id="approval-filter"
+          class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors">
+          <option value="all">Semua Status</option>
+          <option value="menunggu">Menunggu Approval</option>
+          <option value="disetujui">Disetujui</option>
+          <option value="ditolak">Ditolak</option>
+        </select>
+        <button type="button" id="btn-approval-xlsx"
+          class="px-3 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors inline-flex items-center gap-1.5">
+          <i data-lucide="file-spreadsheet" style="width:14px;height:14px"></i> Excel
+        </button>
+      </div>
+      <!-- Body: Tabel -->
+      <div class="flex-1 overflow-y-auto">
+        <div class="px-6 pt-3 text-[11px] text-slate-400"><span id="approval-count">0</span> pengajuan ditemukan</div>
+        <div class="px-6 pt-3 pb-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left border-collapse min-w-[980px]">
+              <thead>
+                <tr class="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-700">
+                  <th class="px-4 py-3 font-semibold">No. Registrasi</th>
+                  <th class="px-4 py-3 font-semibold">Waktu</th>
+                  <th class="px-4 py-3 font-semibold">Teknisi</th>
+                   <th class="px-4 py-3 font-semibold">Barang</th>
+                   <th class="px-4 py-3 font-semibold">Urgensi</th>
+                   <th class="px-4 py-3 font-semibold text-center">Qty</th>
+                  <th class="px-4 py-3 font-semibold">Status Approval</th>
+                  <th class="px-4 py-3 font-semibold">Status Pengadaan</th>
+                  <th class="px-4 py-3 font-semibold">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-pengajuan"></tbody>
+            </table>
+          </div>
+          <div id="approval-pagination" class="flex items-center justify-between flex-wrap gap-2 mt-4"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== MODAL: PR SUMMARY (MANAGER + SUPERVISOR) ======================== -->
+  <div id="modal-prsummary" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeModal('modal-prsummary')"></div>
+    <div class="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh] fade-up">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 sticky top-0 bg-slate-900 rounded-t-2xl">
+        <div>
+          <h3 class="text-white font-bold text-lg leading-tight">PR Summary</h3>
+          <p class="text-slate-400 text-xs mt-0.5">Daftar pengajuan yang menunggu approval Supervisor</p>
+        </div>
+        <button type="button" onclick="closeModal('modal-prsummary')"
+          class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors">
+          <i data-lucide="x" style="width:18px;height:18px"></i></button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4">
+        <div id="prsummary-list" class="space-y-3"></div>
+        <div id="prsummary-empty" class="hidden text-center py-10 text-slate-500">Tidak ada pengajuan yang menunggu.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== MODAL: MONTHLY REPORT (MANAGER) ======================== -->
+  <div id="modal-report" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeModal('modal-report')"></div>
+    <div class="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-y-auto fade-up">
+      <!-- Header -->
+       <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 sticky top-0 bg-slate-900 rounded-t-2xl">
+         <div>
+           <h3 class="text-white font-bold text-lg leading-tight">Monthly Report</h3>
+           <p class="text-slate-400 text-xs mt-0.5">Rekapitulasi pengajuan BQ per periode</p>
+         </div>
+         <div class="flex items-center gap-2">
+           <a href="https://lookerstudio.google.com/reporting/9bb14be8-f9d4-458e-9811-a89e9c8bb216" target="_blank"
+             class="shrink-0 px-3 py-1.5 rounded-lg bg-blue-600/20 text-blue-400 text-[11px] font-bold border border-blue-500/30 hover:bg-blue-600/30 transition-colors inline-flex items-center gap-1.5">
+             <i data-lucide="external-link" style="width:12px;height:12px"></i> Looker Studio
+           </a>
+           <button type="button" onclick="closeModal('modal-report')"
+             class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors">
+             <i data-lucide="x" style="width:18px;height:18px"></i>
+           </button>
+         </div>
+       </div>
+       <!-- Body -->
+       <div class="p-6 space-y-5">
+        <!-- Kartu Ringkasan -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="rounded-2xl bg-slate-800/50 border border-slate-700 p-4 text-center">
+            <p class="text-2xl font-black text-white" id="lbl-total">0</p>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1">Total Pengajuan</p>
+          </div>
+          <div class="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 text-center">
+            <p class="text-2xl font-black text-amber-400" id="lbl-menunggu">0</p>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1">Menunggu</p>
+          </div>
+          <div class="rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-4 text-center">
+            <p class="text-2xl font-black text-emerald-400" id="lbl-disetujui">0</p>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1">Disetujui</p>
+          </div>
+          <div class="rounded-2xl bg-rose-500/10 border border-rose-500/30 p-4 text-center">
+            <p class="text-2xl font-black text-rose-400" id="lbl-ditolak">0</p>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1">Ditolak</p>
+          </div>
+        </div>
+
+        <!-- Kontrol Grafik -->
+        <div class="flex items-end justify-between gap-3 flex-wrap">
+          <div class="flex items-end gap-3 flex-wrap">
+            <div>
+              <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Periode</label>
+              <select id="report-month"
+                class="bg-slate-800/60 border border-slate-700 text-white text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                <option value="all">Semua Bulan</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Kelompokkan</label>
+              <select id="report-group"
+                class="bg-slate-800/60 border border-slate-700 text-white text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                <option value="pengadaan">Status Pengadaan</option>
+                <option value="approval">Status Approval</option>
+                <option value="month">Per Bulan</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Jenis Grafik</label>
+              <select id="report-type"
+                class="bg-slate-800/60 border border-slate-700 text-white text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                <option value="pie">Pie Chart</option>
+                <option value="doughnut">Doughnut Chart</option>
+                <option value="bar">Bar Chart</option>
+                <option value="line">Line Chart</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-report-xlsx" type="button"
+              class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors flex items-center gap-1.5">
+              <i data-lucide="file-spreadsheet" style="width:14px;height:14px"></i> Export Excel
+            </button>
+            <button id="btn-report-export" type="button"
+              class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center gap-1.5">
+              <i data-lucide="download" style="width:14px;height:14px"></i> Export CSV
+            </button>
+            <button id="btn-report-refresh" type="button"
+              class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center gap-1.5">
+              <i data-lucide="refresh-cw" style="width:14px;height:14px"></i> Muat Ulang
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Grafik -->
+        <div class="bg-slate-800/30 border border-slate-800 rounded-2xl p-4">
+          <div class="h-80">
+            <canvas id="reportChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== MODAL: RIWAYAT APPROVAL (AUDIT TRAIL) ======================== -->
+  <div id="modal-riwayat" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeModal('modal-riwayat')"></div>
+    <div class="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[80vh] fade-up">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+        <div>
+          <h3 class="text-white font-bold text-lg leading-tight">Riwayat Approval</h3>
+          <p id="riwayat-sub" class="text-slate-400 text-xs mt-0.5 font-mono">-</p>
+        </div>
+        <button type="button" onclick="closeModal('modal-riwayat')"
+          class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors">
+          <i data-lucide="x" style="width:18px;height:18px"></i>
+        </button>
+      </div>
+      <div id="riwayat-body" class="p-6 overflow-y-auto"></div>
+    </div>
+  </div>
+
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
     // =================== KONFIGURASI ===================
     const API = (location.protocol === 'file:') ? 'http://localhost:3000' : location.origin;
-
-    // Link Google Sheets dari Aps Script CP (docx)
-    const SHEETS = {
-      onHandStock:  'https://docs.google.com/spreadsheets/d/10yd6CsgSB1grnpwKmiHLUW7XbVZ2-DlvyqAAQ_YUUlM/edit',
-      bqMonitoring: 'https://docs.google.com/spreadsheets/d/10hViWt1FCgadcysrFky8oYQKplox2rX5LkIyDP_L-Aw/edit',
-      criticalPart: 'https://docs.google.com/spreadsheets/d/1ZxO9v2JD2ImmwaeSWYUhDg2fCOOBoizJ1s4CwiyQ5AU/edit',
-      prSummary:    'https://docs.google.com/spreadsheets/d/1-dQuO-dirpd7144O3pZq8VkGXSA12p4ZTEYRJJJN7zc/edit',
-    };
 
     // Warna badge per role
     const BADGE = {
@@ -160,6 +660,7 @@
 
     // =================== STATE ===================
     let user = null;
+    let sparepartsCache = null;
 
     // =================== HELPERS ===================
     const $ = (id) => document.getElementById(id);
@@ -172,9 +673,10 @@
       return 'Selamat Malam';
     }
 
-    function sheetUrl(url) {
-      if (!url) return '#';
-      return url.includes('spreadsheets') ? url + '?rm=minimal' : url;
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     // =================== TOAST ===================
@@ -196,62 +698,577 @@
       setTimeout(() => { if (el.parentElement) el.remove(); }, 5000);
     }
 
+    // =================== MODALS ===================
+    function closeModal(id) {
+      $(id).classList.add('hidden');
+      if (id === 'modal-approval') stopApprovalAutoRefresh();
+    }
+
+    async function fetchSpareparts() {
+      if (sparepartsCache) return sparepartsCache;
+      const res = await fetch(API + '/api/spareparts');
+      const json = await res.json();
+      if (!res.ok || json.status !== 'ok') throw new Error(json.message || 'Gagal mengambil data sparepart');
+      sparepartsCache = json.data;
+      return sparepartsCache;
+    }
+
+    let stokData = [];
+    let stokMode = 'all';
+    let stokPage = 1;
+    const STOK_PER_PAGE = 25;
+
+    const STOK_TITLES = {
+      all: ['Daftar Stok Sparepart', 'Data real-time dari database lokal'],
+      critical: ['Critical Part List', 'Sparepart kritis yang wajib tersedia on-hand'],
+      low: ['Item Stok Rendah (≤ Min)', 'Item yang berada di bawah / sama dengan batas minimum'],
+      out: ['Item Stok Habis', 'Item dengan stok on-hand nol'],
+    };
+
+    async function openStokModal(mode) {
+      try {
+        const rows = await fetchSpareparts();
+        stokData = rows;
+        stokMode = mode || 'all';
+        stokPage = 1;
+        $('stok-search').value = '';
+        $('stok-filter').value = 'all';
+        $('modal-stok').classList.remove('hidden');
+        applyStokView();
+      } catch (err) {
+        toast(err.message, false);
+      }
+    }
+
+    function getStokBase() {
+      if (stokMode === 'critical') return stokData.filter((r) => Number(r.is_critical) === 1);
+      if (stokMode === 'low') return stokData.filter((r) => Number(r.min_stock) > 0 && Number(r.qty_on_hand) <= Number(r.min_stock));
+      if (stokMode === 'out') return stokData.filter((r) => Number(r.qty_on_hand) === 0);
+      return stokData;
+    }
+
+    function currentStokItems() {
+      const q = ($('stok-search').value || '').toLowerCase().trim();
+      const filter = $('stok-filter').value;
+      let items = getStokBase();
+      if (filter === 'critical') items = items.filter((r) => Number(r.is_critical) === 1);
+      else if (filter === 'low') items = items.filter((r) => Number(r.min_stock) > 0 && Number(r.qty_on_hand) <= Number(r.min_stock));
+      else if (filter === 'out') items = items.filter((r) => Number(r.qty_on_hand) === 0);
+      if (q) {
+        items = items.filter((r) =>
+          String(r.item_code || '').toLowerCase().includes(q) ||
+          String(r.deskripsi || '').toLowerCase().includes(q) ||
+          String(r.lokasi_rak || '').toLowerCase().includes(q));
+      }
+      return items;
+    }
+
+    function applyStokView() {
+      const t = STOK_TITLES[stokMode] || STOK_TITLES.all;
+      $('stok-modal-title').textContent = t[0];
+      $('stok-modal-sub').textContent = t[1];
+
+      const items = currentStokItems();
+      const total = items.length;
+      const pages = Math.max(1, Math.ceil(total / STOK_PER_PAGE));
+      if (stokPage > pages) stokPage = pages;
+      const start = (stokPage - 1) * STOK_PER_PAGE;
+      const pageItems = items.slice(start, start + STOK_PER_PAGE);
+
+      $('stok-count').textContent = total;
+      renderStockTable(pageItems);
+      renderStokPagination(total, pages);
+      lucide.createIcons();
+    }
+
+    function renderStokPagination(total, pages) {
+      const box = $('stok-pagination');
+      if (!total) { box.innerHTML = ''; return; }
+      const from = (stokPage - 1) * STOK_PER_PAGE + 1;
+      const to = Math.min(total, stokPage * STOK_PER_PAGE);
+      const btn = (dir, label, disabled) =>
+        '<button type="button" data-stok-page="' + dir + '" ' + (disabled ? 'disabled ' : '') +
+        'class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">' + label + '</button>';
+      box.innerHTML =
+        '<span class="text-[11px] text-slate-400">Menampilkan ' + from + '–' + to + ' dari ' + total + '</span>' +
+        '<div class="flex items-center gap-2">' + btn('prev', 'Prev', stokPage <= 1) +
+        '<span class="text-xs text-slate-300 font-semibold">' + stokPage + ' / ' + pages + '</span>' +
+        btn('next', 'Next', stokPage >= pages) + '</div>';
+    }
+
+    function exportStokCsv() {
+      const items = currentStokItems();
+      if (!items.length) { toast('Tidak ada data untuk diexport.', false); return; }
+      const lines = [['Item Code', 'Deskripsi', 'Qty On Hand', 'Min', 'Max', 'Lokasi Rak', 'Kritis', 'Status'].join(',')];
+      items.forEach(function (r) {
+        const qty = Number(r.qty_on_hand), min = Number(r.min_stock);
+        const status = qty === 0 ? 'Stok Habis' : (qty <= min ? 'Stok Rendah' : 'Aman');
+        lines.push([
+          '"' + String(r.item_code || '').replace(/"/g, '""') + '"',
+          '"' + String(r.deskripsi || '').replace(/"/g, '""') + '"',
+          qty, min, Number(r.max_stock),
+          '"' + String(r.lokasi_rak || '').replace(/"/g, '""') + '"',
+          Number(r.is_critical) === 1 ? 'Ya' : 'Tidak', status,
+        ].join(','));
+      });
+      const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'stock_' + stokMode + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // Kirim data ke backend lalu unduh sebagai file .xlsx.
+    async function downloadXlsx(filename, sheet, columns, rows) {
+      const res = await fetch(API + '/api/export/xlsx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, sheet, columns, rows }),
+      });
+      if (!res.ok) {
+        let msg = 'Gagal membuat file Excel';
+        try { msg = (await res.json()).message || msg; } catch (e) { /* biarkan pesan default */ }
+        throw new Error(msg);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename + '.xlsx';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function exportStokXlsx() {
+      const items = currentStokItems();
+      if (!items.length) { toast('Tidak ada data untuk diexport.', false); return; }
+      const columns = [
+        { key: 'item_code', label: 'Item Code' },
+        { key: 'deskripsi', label: 'Deskripsi' },
+        { key: 'qty_on_hand', label: 'Qty On Hand' },
+        { key: 'min_stock', label: 'Min' },
+        { key: 'max_stock', label: 'Max' },
+        { key: 'lokasi_rak', label: 'Lokasi Rak' },
+        { key: 'kritis', label: 'Kritis' },
+        { key: 'status', label: 'Status' },
+      ];
+      const rows = items.map(function (r) {
+        const qty = Number(r.qty_on_hand), min = Number(r.min_stock);
+        return {
+          item_code: r.item_code,
+          deskripsi: r.deskripsi,
+          qty_on_hand: qty,
+          min_stock: min,
+          max_stock: Number(r.max_stock),
+          lokasi_rak: r.lokasi_rak || '',
+          kritis: Number(r.is_critical) === 1 ? 'Ya' : 'Tidak',
+          status: qty === 0 ? 'Stok Habis' : (qty <= min ? 'Stok Rendah' : 'Aman'),
+        };
+      });
+      try {
+        await downloadXlsx('stock_' + stokMode + '_' + new Date().toISOString().slice(0, 10), 'Stok Sparepart', columns, rows);
+        toast('File Excel berhasil diunduh.', true);
+      } catch (err) {
+        toast(err.message, false);
+      }
+    }
+
+    function renderStockTable(rows) {
+      const tbody = $('tbody-stok');
+      if (!rows.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="7" class="px-4 py-10 text-center text-slate-500 font-medium">Tidak ada data sparepart.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map((r) => {
+        const critical = Number(r.is_critical) === 1;
+        const stokRendah = Number(r.qty_on_hand) <= Number(r.min_stock);
+        return '<tr class="border-b border-slate-800 hover:bg-slate-800/40 transition-colors">' +
+          '<td class="px-4 py-3 font-mono text-xs text-sky-400 whitespace-nowrap">' + esc(r.item_code) + '</td>' +
+          '<td class="px-4 py-3 text-white">' + esc(r.deskripsi) + '</td>' +
+          '<td class="px-4 py-3 text-right ' + (stokRendah ? 'text-rose-400 font-bold' : 'text-white font-semibold') + '">' + Number(r.qty_on_hand) + '</td>' +
+          '<td class="px-4 py-3 text-right text-slate-400">' + Number(r.min_stock) + '</td>' +
+          '<td class="px-4 py-3 text-right text-slate-400">' + Number(r.max_stock) + '</td>' +
+          '<td class="px-4 py-3 text-slate-300 whitespace-nowrap">' + esc(r.lokasi_rak || '-') + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap">' +
+            (critical
+              ? '<span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-md bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/40">KRITIS</span>'
+              : '<span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-md bg-slate-700/40 text-slate-400 ring-1 ring-slate-600/40">NORMAL</span>') +
+          '</td>' +
+        '</tr>';
+      }).join('');
+      lucide.createIcons();
+    }
+
+    // =================== KPI RINGKASAN STOK ===================
+    async function loadStockSummary() {
+      const box = $('kpi-section');
+      try {
+        const res = await fetch(API + '/api/spareparts/summary');
+        const json = await res.json();
+        if (!res.ok || json.status !== 'ok') throw new Error(json.message || 'Gagal memuat ringkasan stok');
+        const d = json.data;
+         $('kpi-total').textContent = d.total_item;
+         $('kpi-critical').textContent = d.total_critical;
+         $('kpi-low').textContent = d.stok_rendah;
+         $('kpi-out').textContent = d.stok_habis;
+         // Alert stok di bawah min (dari /api/spareparts/alert).
+         try {
+           const a = await fetch(API + '/api/spareparts/alert');
+           const ja = await a.json();
+           const alertN = (ja.status === 'ok') ? (ja.count || 0) : 0;
+           $('kpi-alert').textContent = alertN;
+           $('kpi-alert-n').textContent = alertN;
+           $('kpi-alert').style.display = alertN > 0 ? '' : 'none';
+         } catch (e) { /* abaikan jika alert endpoint belum ada */ }
+         renderLowStockPanel(d.low_stock || []);
+        box.classList.remove('hidden');
+        lucide.createIcons();
+      } catch (err) {
+        box.classList.add('hidden');
+      }
+    }
+
+    function renderLowStockPanel(items) {
+      const panel = $('low-stock-panel');
+      const list = $('low-stock-list');
+      if (!items.length) { panel.classList.add('hidden'); return; }
+      list.innerHTML = items.map(function (r) {
+        const defisit = Math.max(0, Number(r.min_stock) - Number(r.qty_on_hand));
+        return '<div class="flex items-center gap-3 px-5 py-2.5 hover:bg-slate-800/40 transition-colors">' +
+          '<span class="font-mono text-[11px] text-sky-400 w-32 shrink-0 truncate" title="' + esc(r.item_code) + '">' + esc(r.item_code) + '</span>' +
+          '<span class="text-slate-300 text-xs flex-1 truncate" title="' + esc(r.deskripsi) + '">' + esc(r.deskripsi) + '</span>' +
+          (Number(r.is_critical) === 1 ? '<span class="text-[9px] font-extrabold uppercase text-rose-400 ring-1 ring-rose-500/40 rounded px-1.5 py-0.5 shrink-0">Kritis</span>' : '') +
+          '<span class="text-xs whitespace-nowrap shrink-0"><span class="text-rose-400 font-bold">' + Number(r.qty_on_hand) + '</span>' +
+          '<span class="text-slate-500"> / ' + Number(r.min_stock) + ' min</span></span>' +
+          '<span class="text-[10px] text-amber-400 font-semibold whitespace-nowrap shrink-0">-' + defisit + '</span>' +
+        '</div>';
+      }).join('');
+      panel.classList.remove('hidden');
+    }
+
+    async function openBqModal() {
+      try {
+        const parts = await fetchSpareparts();
+        const sel = $('f-itemcode');
+        if (!parts.length) {
+          sel.innerHTML = '<option value="">-- Belum ada data sparepart --</option>';
+        } else {
+          sel.innerHTML = '<option value="">-- Pilih Item Code --</option>' +
+            parts.map((p) =>
+              '<option value="' + esc(p.item_code) + '">' + esc(p.item_code) + ' — ' + esc(p.deskripsi) + '</option>'
+            ).join('');
+        }
+        $('modal-bq').classList.remove('hidden');
+        setTimeout(function () { $('f-qty').focus(); }, 50);
+      } catch (err) {
+        toast(err.message, false);
+      }
+    }
+
+    // =================== BQ SUMMARY ===================
+    async function openBqSummaryModal() {
+      const body = $('bqsummary-body');
+      body.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">Memuat data BQ Summary…</div>';
+      $('modal-bqsummary').classList.remove('hidden');
+
+      try {
+        const token = sessionStorage.getItem('authToken');
+        const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+
+        const [summaryRes, allRes] = await Promise.all([
+          fetch('/api/pengajuan/bq-summary', { headers: headers }),
+          fetch('/api/pengajuan/all', { headers: headers }),
+        ]);
+        const summary = await summaryRes.ok ? await summaryRes.json() : {};
+        const allData = allRes.ok ? await allRes.json() : [];
+
+        const data = Array.isArray(allData) ? allData : (allData.data || []);
+
+        // hitung statistik
+        const total      = data.length || 0;
+        const urgent     = data.filter(d => d.urgency === 'Urgent').length;
+        const normal     = total - urgent;
+        const sparepart  = data.filter(d => d.jenis_pengajuan === 'sparepart').length;
+        const jasa       = total - sparepart;
+
+        // approval status
+        const menungguSPV  = data.filter(d => d.status_approval_spv === 'Menunggu').length;
+        const disetujuiSPV = data.filter(d => d.status_approval_spv === 'Disetujui').length;
+        const ditolakSPV   = data.filter(d => d.status_approval_spv === 'Ditolak').length;
+        const menungguMGR  = data.filter(d => d.status_approval_manager === 'Menunggu' && d.status_approval_spv === 'Disetujui').length;
+        const disetujuiMGR = data.filter(d => d.status_approval_manager === 'Disetujui').length;
+        const ditolakMGR   = data.filter(d => d.status_approval_manager === 'Ditolak').length;
+
+        // pipeline status
+        const statusMap = {};
+        data.forEach(d => {
+          const st = d.status_pengadaan || 'BQ Baru';
+          statusMap[st] = (statusMap[st] || 0) + 1;
+        });
+
+        body.innerHTML = `
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-center">
+              <div class="text-2xl font-bold text-white">${total}</div>
+              <div class="text-slate-400 text-xs mt-1">Total Pengajuan</div>
+            </div>
+            <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
+              <div class="text-2xl font-bold text-amber-400">${urgent}</div>
+              <div class="text-slate-400 text-xs mt-1">Urgent</div>
+            </div>
+            <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-center">
+              <div class="text-2xl font-bold text-emerald-400">${normal}</div>
+              <div class="text-slate-400 text-xs mt-1">Normal</div>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-center">
+              <div class="text-2xl font-bold text-white">${sparepart}</div>
+              <div class="text-slate-400 text-xs mt-1">Sparepart</div>
+            </div>
+          </div>
+
+          <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+            <h4 class="text-white font-bold text-sm mb-3">Status Approval</h4>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 shrink-0"></span>
+                <span class="text-slate-300">Menunggu SPV</span>
+                <span class="ml-auto text-white font-semibold">${menungguSPV}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0"></span>
+                <span class="text-slate-300">Disetujui SPV</span>
+                <span class="ml-auto text-white font-semibold">${disetujuiSPV}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0"></span>
+                <span class="text-slate-300">Ditolak SPV</span>
+                <span class="ml-auto text-white font-semibold">${ditolakSPV}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 shrink-0"></span>
+                <span class="text-slate-300">Menunggu Manager</span>
+                <span class="ml-auto text-white font-semibold">${menungguMGR}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0"></span>
+                <span class="text-slate-300">Disetujui Manager</span>
+                <span class="ml-auto text-white font-semibold">${disetujuiMGR}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0"></span>
+                <span class="text-slate-300">Ditolak Manager</span>
+                <span class="ml-auto text-white font-semibold">${ditolakMGR}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+            <h4 class="text-white font-bold text-sm mb-3">Pipeline Status Pengadaan</h4>
+            <div class="space-y-2 text-sm">
+              ${Object.entries(statusMap).map(([st, cnt]) => `
+                <div class="flex items-center gap-3">
+                  <span class="text-slate-300 w-44">${esc(st)}</span>
+                  <div class="flex-1 bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div class="bg-cyan-500 h-full rounded-full" style="width: ${total ? Math.round(cnt / total * 100) : 0}%"></div>
+                  </div>
+                  <span class="text-white font-semibold w-10 text-right">${cnt}</span>
+                </div>
+              `).join('')}
+              ${Object.keys(statusMap).length === 0 ? '<div class="text-slate-500 text-xs text-center py-2">Belum ada data</div>' : ''}
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        body.innerHTML = '<div class="text-center text-red-400 text-sm py-8">Gagal memuat data: ' + esc(err.message) + '</div>';
+      }
+    }
+
     // =================== RBAC MENU ===================
-    function getMenu(role, bqLink) {
+    function getMenu(role) {
       const r = (role || '').toLowerCase();
       const items = [];
 
       // --- TEKNISI ---
       if (r === 'teknisi') {
         items.push({
+          action: 'bq',
           title: 'BQ Personal',
           desc: 'Input pengajuan barang baru',
           icon: 'file-plus',
           bg: 'bg-blue-600',
-          url: sheetUrl(bqLink),
         });
         items.push({
+          action: 'stok',
           title: 'On Hand Stock',
           desc: 'Cek ketersediaan stok sparepart',
           icon: 'package',
           bg: 'bg-amber-500',
-          url: sheetUrl(SHEETS.onHandStock),
+        });
+        items.push({
+          action: 'bqsummary',
+          title: 'BQ Summary',
+          desc: 'Status pengajuan & ringkasan BQ',
+          icon: 'bar-chart-3',
+          bg: 'bg-cyan-600',
         });
       }
 
-      // --- SUPERVISOR / MANAGER / OFFICER ---
-      if (r.startsWith('supervisor') || r === 'manager' || r === 'officer') {
+      // --- SUPERVISOR 1 ---
+      if (r === 'supervisor 1') {
         items.push({
+          action: 'prsummary',
           title: 'PR Summary',
           desc: 'Ringkasan Purchase Request',
           icon: 'clipboard-list',
           bg: 'bg-cyan-600',
-          url: sheetUrl(SHEETS.prSummary),
         });
         items.push({
-          title: 'BQ Monitoring',
-          desc: 'Pantau seluruh pengajuan barang',
+          action: 'report',
+          title: 'Monthly Report',
+          desc: 'Laporan bulanan pengajuan BQ',
+          icon: 'bar-chart-3',
+          bg: 'bg-violet-600',
+        });
+        items.push({
+          action: 'bqsummary',
+          title: 'BQ Summary',
+          desc: 'Ringkasan seluruh pengajuan BQ',
+          icon: 'bar-chart-3',
+          bg: 'bg-cyan-600',
+        });
+        items.push({
+          action: 'monitoring',
+          title: 'Approval BQ Tahap Supervisor',
+          desc: 'Persetujuan & monitoring pengajuan',
           icon: 'activity',
           bg: 'bg-emerald-600',
-          url: sheetUrl(SHEETS.bqMonitoring),
         });
         items.push({
+          action: 'critical',
           title: 'Critical Part List',
           desc: 'Daftar sparepart kritis',
           icon: 'alert-triangle',
           bg: 'bg-rose-500',
-          url: sheetUrl(SHEETS.criticalPart),
+        });
+        items.push({
+          action: 'stok',
+          title: 'On Hand Stock',
+          desc: 'Cek ketersediaan stok gudang',
+          icon: 'package',
+          bg: 'bg-amber-500',
+        });
+      }
+
+      // --- OFFICER & SUPERVISOR 2 ---
+      if (r === 'officer' || r === 'supervisor 2') {
+        items.push({
+          action: 'bqsummary',
+          title: 'BQ Summary',
+          desc: 'Ringkasan seluruh pengajuan BQ',
+          icon: 'bar-chart-3',
+          bg: 'bg-cyan-600',
+        });
+        items.push({
+          action: 'monitoring',
+          title: 'Approval BQ Tahap Supervisor',
+          desc: 'Persetujuan & monitoring pengajuan',
+          icon: 'activity',
+          bg: 'bg-emerald-600',
+        });
+        items.push({
+          action: 'critical',
+          title: 'Critical Part List',
+          desc: 'Daftar sparepart kritis',
+          icon: 'alert-triangle',
+          bg: 'bg-rose-500',
+        });
+        items.push({
+          action: 'stok',
+          title: 'On Hand Stock',
+          desc: 'Cek ketersediaan stok gudang',
+          icon: 'package',
+          bg: 'bg-amber-500',
+        });
+      }
+
+      // --- MANAGER ---
+      if (r === 'manager') {
+        items.push({
+          action: 'stok',
+          title: 'On Hand Stock',
+          desc: 'Monitoring stok sparepart fisik',
+          icon: 'package',
+          bg: 'bg-amber-500',
+        });
+        items.push({
+          action: 'report',
+          title: 'Monthly Report',
+          desc: 'Laporan bulanan & executive dashboard',
+          icon: 'bar-chart-3',
+          bg: 'bg-violet-600',
+        });
+        items.push({
+          action: 'bqsummary',
+          title: 'BQ Summary',
+          desc: 'Ringkasan pengajuan BQ',
+          icon: 'bar-chart-3',
+          bg: 'bg-cyan-600',
+        });
+        items.push({
+          action: 'monitoring',
+          title: 'Approval BQ Urgent',
+          desc: 'Persetujuan akhir & approval urgent',
+          icon: 'activity',
+          bg: 'bg-emerald-600',
+        });
+        items.push({
+          action: 'critical',
+          title: 'Critical Part List',
+          desc: 'Daftar sparepart kritis',
+          icon: 'alert-triangle',
+          bg: 'bg-rose-500',
         });
       }
 
       return items;
     }
 
+    function handleAction(action) {
+      switch (action) {
+        case 'stok':
+          openStokModal('all');
+          break;
+        case 'critical':
+          openStokModal('critical');
+          break;
+        case 'bq':
+          openBqModal();
+          break;
+        case 'bqsummary':
+          openBqSummaryModal();
+          break;
+        case 'monitoring':
+          openApprovalModal();
+          break;
+        case 'report':
+          openReportModal();
+          break;
+        case 'prsummary':
+          openPrSummaryModal();
+          break;
+        default:
+          toast('Modul ini sedang dalam pengembangan.', false);
+      }
+    }
+
     // =================== RENDER MENU ===================
     function renderMenu(q) {
       if (!user) return;
       const filter = (q || '').toLowerCase();
-      const items = getMenu(user.role, user.bqLink)
+      const items = getMenu(user.role)
         .filter(i => !filter || i.title.toLowerCase().includes(filter) || i.desc.toLowerCase().includes(filter));
 
       const grid = $('menu-grid');
@@ -265,9 +1282,9 @@
       empty.classList.add('hidden');
 
       grid.innerHTML = items.map((m, i) =>
-        '<a href="' + m.url + '" target="_blank" rel="noopener noreferrer" ' +
+        '<button type="button" data-action="' + m.action + '" ' +
         'class="' + m.bg + ' group relative overflow-hidden p-6 rounded-2xl shadow-lg hover:shadow-xl ' +
-        'transition-all duration-300 flex flex-col items-start justify-between h-44 w-full text-left pop fade-up" ' +
+        'transition-all duration-300 flex flex-col items-start justify-between h-44 w-full text-left pop fade-up cursor-pointer" ' +
         'style="animation-delay:' + (i * 70) + 'ms">' +
           '<div class="absolute -top-5 -right-5 w-28 h-28 bg-white opacity-10 rounded-full group-hover:scale-150 transition-transform duration-700"></div>' +
           '<div class="z-10 bg-white/20 p-3 rounded-xl backdrop-blur-md ring-1 ring-white/30">' +
@@ -277,7 +1294,7 @@
             '<h3 class="font-bold text-white text-lg leading-tight mb-1">' + m.title + '</h3>' +
             '<p class="text-white/70 text-xs font-medium leading-tight line-clamp-2">' + m.desc + '</p>' +
           '</div>' +
-        '</a>'
+        '</button>'
       ).join('');
 
       lucide.createIcons();
@@ -301,7 +1318,9 @@
       $('greet-title').textContent = greet() + ', ' + u.name + '! 👋';
       $('inp-search').value = '';
       renderMenu('');
+      loadStockSummary();
       lucide.createIcons();
+      setTimeout(function () { startTour(); }, 600);
     }
 
     // =================== TAMPILKAN LOGIN ===================
@@ -323,9 +1342,26 @@
     }
 
     // =================== SESSION ===================
-    function loadSession()  { try { const s = sessionStorage.getItem('user'); return s ? JSON.parse(s) : null; } catch { return null; } }
-    function saveSession(u) { sessionStorage.setItem('user', JSON.stringify(u)); }
-    function clearSession() { sessionStorage.removeItem('user'); }
+    function loadSession() {
+      try {
+        var s = localStorage.getItem('user_remember') || sessionStorage.getItem('user');
+        return s ? JSON.parse(s) : null;
+      } catch { return null; }
+    }
+    function saveSession(u) {
+      var json = JSON.stringify(u);
+      if ($('chk-remember') && $('chk-remember').checked) {
+        localStorage.setItem('user_remember', json);
+        sessionStorage.removeItem('user');
+      } else {
+        sessionStorage.setItem('user', json);
+        localStorage.removeItem('user_remember');
+      }
+    }
+    function clearSession() {
+      sessionStorage.removeItem('user');
+      localStorage.removeItem('user_remember');
+    }
 
     // =================== LOGIN HANDLER ===================
     $('login-form').addEventListener('submit', async function (e) {
@@ -367,13 +1403,837 @@
     // =================== LOGOUT ===================
     $('btn-logout').addEventListener('click', function () {
       clearSession();
+      closeModal('modal-stok');
+      closeModal('modal-bq');
+      closeModal('modal-approval');
+      closeModal('modal-report');
+      closeModal('modal-riwayat');
       showLogin();
+    });
+
+    // =================== MENU CLICK ===================
+    $('menu-grid').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      handleAction(btn.dataset.action);
+    });
+
+    // =================== FORM BQ SUBMIT ===================
+    $('form-bq').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const itemCode = $('f-itemcode').value;
+      const qty = Number($('f-qty').value);
+      const uom = $('f-uom').value.trim();
+      const purpose = $('f-purpose').value;
+      const no_ejo = $('f-no-ejo').value.trim();
+      const mesin_area = $('f-mesin-area').value.trim();
+      const merk = $('f-merk').value.trim();
+      const spesifikasi = $('f-spesifikasi').value.trim();
+      const referensi_penawaran = $('f-referensi').value.trim();
+      const jenis = $('f-jenis').value;
+      const urgency = $('f-urgency').value;
+      const jasaKet = $('f-jasa-ket').value.trim();
+
+      if (jenis === 'sparepart') {
+        if (!itemCode || !qty || !uom || !purpose || !no_ejo || !mesin_area || !spesifikasi) {
+          toast('Field yang ditandai wajib diisi', false);
+          return;
+        }
+      } else {
+        if (!qty || !uom || !purpose || !no_ejo || !mesin_area || (!spesifikasi && !jasaKet)) {
+          toast('Field wajib diisi. Keterangan jasa jika spesifikasi kosong.', false);
+          return;
+        }
+      }
+
+      $('btn-kirim-bq').disabled = true;
+
+      try {
+        const payload = {
+          username: user.username,
+          qty, uom, purpose, no_ejo, mesin_area, merk, spesifikasi,
+          jenis_pengajuan: jenis,
+          urgency: urgency,
+          ...(referensi_penawaran ? { referensi_penawaran } : {}),
+        };
+        if (jenis === 'sparepart' && itemCode) payload.itemCode = itemCode;
+        else if (jenis === 'jasa') payload.spesifikasi = spesifikasi || jasaKet;
+
+        const res = await fetch(API + '/api/pengajuan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+
+        if (res.ok && json.status === 'ok') {
+          alert('Pengajuan Berhasil');
+          $('form-bq').reset();
+          closeModal('modal-bq');
+          toast('Pengajuan BQ ' + json.data.no_registrasi + ' tersimpan.', true);
+        } else {
+          toast(json.message || 'Gagal mengirim pengajuan.', false);
+        }
+      } catch (err) {
+        toast('Gagal terhubung ke server. Pastikan server berjalan.', false);
+      } finally {
+        $('btn-kirim-bq').disabled = false;
+      }
     });
 
     // =================== SEARCH ===================
     $('inp-search').addEventListener('input', function (e) {
       renderMenu(e.target.value);
     });
+
+    // =================== KPI CARD & REFRESH ===================
+    $('kpi-section').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-stock]');
+      if (!btn) return;
+      openStokModal(btn.dataset.stock);
+    });
+
+    $('btn-kpi-refresh').addEventListener('click', function () {
+      loadStockSummary().then(function () { toast('Ringkasan stok diperbarui.', true); });
+    });
+
+    // =================== MODUL MANAGER ===================
+    // Whitelist status (harus sinkron dengan backend bqController.js).
+    const STATUS_APPROVAL = ['Menunggu', 'Disetujui', 'Ditolak'];
+    const STATUS_PENGADAAN = ['BQ Baru', 'Pending', 'Proses PO', 'Barang Dikirim', 'Tiba di Gudang'];
+
+    // =================== FETCH DATA ===================
+    async function fetchPengajuan() {
+      const res = await fetch(API + '/api/pengajuan/all');
+      const json = await res.json();
+      if (!res.ok || json.status !== 'ok') throw new Error(json.message || 'Gagal mengambil data pengajuan');
+      return json.data || [];
+    }
+
+    // Kirim update status ke backend, lalu beri sinyal error bila gagal.
+    async function updatePengajuanStatus(no, payload) {
+      const res = await fetch(API + '/api/pengajuan/' + encodeURIComponent(no) + '/status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok || json.status !== 'ok') throw new Error(json.message || 'Gagal mengubah status');
+      return json;
+    }
+
+    // =================== HELPER TAMPILAN ===================
+    function fmtTanggal(v) {
+      if (!v) return '-';
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return String(v);
+      return d.toLocaleString('id-ID', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+    }
+
+    function approvalBadge(s) {
+      const map = {
+        'Menunggu':   'bg-amber-500/15 text-amber-400 ring-amber-500/40',
+        'Disetujui':  'bg-emerald-500/15 text-emerald-400 ring-emerald-500/40',
+        'Ditolak':    'bg-rose-500/15 text-rose-400 ring-rose-500/40',
+      };
+      const cls = map[s] || 'bg-slate-700/40 text-slate-400 ring-slate-600/40';
+      return '<span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-md ring-1 ' + cls + '">'
+        + esc(s || '-') + '</span>';
+    }
+
+    // =================== MODAL APPROVAL & MONITORING ===================
+    let approvalTimer = null; // id interval auto-refresh "real-time"
+
+    function stopApprovalAutoRefresh() {
+      if (approvalTimer) { clearInterval(approvalTimer); approvalTimer = null; }
+    }
+
+    async function openApprovalModal() {
+      $('modal-approval').classList.remove('hidden');
+      approvalPage = 1;
+      $('approval-search').value = '';
+      $('approval-filter').value = 'all';
+      $('tbody-pengajuan').innerHTML =
+        '<tr><td colspan="8" class="px-4 py-12 text-center text-slate-500 font-medium">Memuat data pengajuan…</td></tr>';
+      try {
+        const ok = await refreshApprovalTable(false); // initial load + render
+        if (!ok) return;
+        // Dashboard "real-time": refresh otomatis tiap 20 detik selama modal terbuka.
+        stopApprovalAutoRefresh();
+        approvalTimer = setInterval(function () { refreshApprovalTable(true); }, 20000);
+        lucide.createIcons();
+      } catch (err) {
+        toast(err.message, false);
+      }
+    }
+
+    let approvalData = [];
+    let approvalPage = 1;
+    const APPROVAL_PER_PAGE = 25;
+
+    // Ambil data terbaru lalu render ulang tabel.
+    async function refreshApprovalTable(silent) {
+      try {
+        approvalData = await fetchPengajuan();
+        applyApprovalView();
+        return true;
+      } catch (err) {
+        if (!silent) toast(err.message, false);
+        return false;
+      }
+    }
+
+    // Terapkan pencarian + filter status pada data pengajuan.
+    function currentApprovalRows() {
+      const q = ($('approval-search').value || '').toLowerCase().trim();
+      const f = $('approval-filter').value;
+      let rows = approvalData;
+      if (f === 'menunggu') {
+        rows = rows.filter((r) => r.status_approval_spv === 'Menunggu' || r.status_approval_manager === 'Menunggu');
+      } else if (f === 'disetujui') {
+        rows = rows.filter((r) => r.status_approval_manager === 'Disetujui');
+      } else if (f === 'ditolak') {
+        rows = rows.filter((r) => r.status_approval_spv === 'Ditolak' || r.status_approval_manager === 'Ditolak');
+      }
+       if (q) {
+         rows = rows.filter((r) =>
+           String(r.no_registrasi || '').toLowerCase().includes(q) ||
+           String(r.nama_teknisi || '').toLowerCase().includes(q) ||
+           String(r.username_teknisi || '').toLowerCase().includes(q) ||
+           String(r.item_code || '').toLowerCase().includes(q) ||
+           String(r.deskripsi_barang || '').toLowerCase().includes(q) ||
+           String(r.no_ejo || '').toLowerCase().includes(q) ||
+           String(r.mesin_area || '').toLowerCase().includes(q) ||
+           String(r.urgency || '').toLowerCase().includes(q));
+       }
+      return rows;
+    }
+
+    function applyApprovalView() {
+      const items = currentApprovalRows();
+      const total = items.length;
+      const pages = Math.max(1, Math.ceil(total / APPROVAL_PER_PAGE));
+      if (approvalPage > pages) approvalPage = pages;
+      const start = (approvalPage - 1) * APPROVAL_PER_PAGE;
+      $('approval-count').textContent = total;
+      renderApprovalTable(items.slice(start, start + APPROVAL_PER_PAGE));
+      renderApprovalPagination(total, pages);
+      lucide.createIcons();
+    }
+
+    function renderApprovalPagination(total, pages) {
+      const box = $('approval-pagination');
+      if (!total) { box.innerHTML = ''; return; }
+      const from = (approvalPage - 1) * APPROVAL_PER_PAGE + 1;
+      const to = Math.min(total, approvalPage * APPROVAL_PER_PAGE);
+      const btn = (dir, label, disabled) =>
+        '<button type="button" data-approval-page="' + dir + '" ' + (disabled ? 'disabled ' : '') +
+        'class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">' + label + '</button>';
+      box.innerHTML =
+        '<span class="text-[11px] text-slate-400">Menampilkan ' + from + '–' + to + ' dari ' + total + '</span>' +
+        '<div class="flex items-center gap-2">' + btn('prev', 'Prev', approvalPage <= 1) +
+        '<span class="text-xs text-slate-300 font-semibold">' + approvalPage + ' / ' + pages + '</span>' +
+        btn('next', 'Next', approvalPage >= pages) + '</div>';
+    }
+
+    async function exportApprovalXlsx() {
+      const items = currentApprovalRows();
+      if (!items.length) { toast('Tidak ada data untuk diexport.', false); return; }
+       const columns = [
+         { key: 'no_registrasi', label: 'No. Registrasi' },
+         { key: 'waktu', label: 'Waktu' },
+         { key: 'nama_teknisi', label: 'Teknisi' },
+         { key: 'username_teknisi', label: 'Username' },
+         { key: 'role_pengaju', label: 'Role' },
+         { key: 'no_ejo', label: 'No. EJO' },
+         { key: 'mesin_area', label: 'Mesin / Area' },
+         { key: 'item_code', label: 'Item Code' },
+         { key: 'deskripsi_barang', label: 'Deskripsi Barang' },
+         { key: 'spesifikasi_lengkap', label: 'Spesifikasi' },
+         { key: 'purpose', label: 'Purpose' },
+         { key: 'uom', label: 'UOM' },
+         { key: 'qty_diminta', label: 'Qty' },
+         { key: 'urgency', label: 'Urgensi' },
+         { key: 'jenis_pengajuan', label: 'Jenis' },
+         { key: 'status_approval_spv', label: 'Approval SPV' },
+         { key: 'status_approval_manager', label: 'Approval Manager' },
+         { key: 'status_pengadaan', label: 'Status Pengadaan' },
+       ];
+       const rows = items.map(function (r) {
+         return {
+           no_registrasi: r.no_registrasi,
+           waktu: fmtTanggal(r.timestamp),
+           nama_teknisi: r.nama_teknisi || '',
+           username_teknisi: r.username_teknisi || '',
+           role_pengaju: r.role_pengaju || '',
+           no_ejo: r.no_ejo || '',
+           mesin_area: r.mesin_area || '',
+           item_code: r.item_code || '',
+           deskripsi_barang: r.deskripsi_barang || '',
+           spesifikasi_lengkap: r.spesifikasi_lengkap || '',
+           purpose: r.purpose || '',
+           uom: r.uom || '',
+           qty_diminta: Number(r.qty_diminta),
+           urgency: r.urgency || 'Normal',
+           jenis_pengajuan: r.jenis_pengajuan || 'sparepart',
+           status_approval_spv: r.status_approval_spv || '',
+           status_approval_manager: r.status_approval_manager || '',
+           status_pengadaan: r.status_pengadaan || '',
+         };
+       });
+      try {
+        await downloadXlsx('bq-monitoring-' + new Date().toISOString().slice(0, 10), 'BQ Monitoring', columns, rows);
+        toast('File Excel berhasil diunduh.', true);
+      } catch (err) {
+        toast(err.message, false);
+      }
+    }
+
+    // ---- Klasifikasi role di sisi klien (sinkron dengan backend bqController) ----
+    function actorKey() {
+      const r = ((user && user.role) || '').toLowerCase();
+      if (r.startsWith('supervisor')) return 'supervisor';
+      if (r === 'officer') return 'officer';
+      if (r === 'manager') return 'manager';
+      return 'other';
+    }
+
+    // Badge approval berpasangan: SPV (tahap 1) di atas, MGR (tahap 2) di bawah.
+    function approvalBadgePair(spv, mgr) {
+      return '<div class="flex flex-col gap-1.5 min-w-[110px]">' +
+        '<div class="flex items-center gap-1.5"><span class="w-7 text-[9px] font-extrabold text-slate-500">SPV</span>' + approvalBadge(spv) + '</div>' +
+        '<div class="flex items-center gap-1.5"><span class="w-7 text-[9px] font-extrabold text-slate-500">MGR</span>' + approvalBadge(mgr) + '</div>' +
+      '</div>';
+    }
+
+    function renderApprovalTable(rows) {
+      const tbody = $('tbody-pengajuan');
+      if (!rows.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="9" class="px-4 py-10 text-center text-slate-500 font-medium">Belum ada pengajuan BQ.</td></tr>';
+        return;
+      }
+
+      const akey = actorKey();
+      const canSpv      = (akey === 'supervisor' || akey === 'manager'); // backend: manager boleh juga
+      const canMgr      = (akey === 'manager');
+      const canProcure  = (akey === 'officer' || akey === 'manager');
+
+      tbody.innerHTML = rows.map((r) => {
+        const spvLocked = r.status_approval_spv === 'Disetujui' || r.status_approval_spv === 'Ditolak';
+        const mgrLocked = r.status_approval_manager === 'Disetujui' || r.status_approval_manager === 'Ditolak';
+        const spvNotYet = r.status_approval_spv !== 'Disetujui';
+        const mgrDisabled = spvNotYet || mgrLocked;
+
+        const options = STATUS_PENGADAAN.map((s) =>
+          '<option value="' + esc(s) + '"' + (r.status_pengadaan === s ? ' selected' : '') + '>' + esc(s) + '</option>'
+        ).join('');
+
+        // Kolom 7: Status Pengadaan — Officer/Manager bisa ubah, Supervisor baca-saja.
+        let pengadaanCell;
+        if (canProcure) {
+          pengadaanCell =
+            '<select data-no="' + esc(r.no_registrasi) + '" class="bg-slate-800/60 border border-slate-700 text-white text-xs rounded-lg px-2 py-1.5 outline-none focus:border-blue-500">' +
+              options +
+            '</select>';
+        } else {
+          pengadaanCell = approvalBadge(r.status_pengadaan);
+        }
+
+        // Kolom 8: Aksi — Supervisor: approve SPV. Manager: approve final MGR.
+        // Manager diprioritaskan untuk approval tahap akhir (MGR).
+        // Tombol "Riwayat" selalu tersedia untuk semua role (audit trail).
+        let actionCell = '';
+        if (canMgr) {
+          actionCell =
+            '<button data-no="' + esc(r.no_registrasi) + '" data-field="mgr" data-approve="approved" ' + (mgrDisabled ? 'disabled ' : '') + 'title="' + (spvNotYet ? 'Menunggu persetujuan Supervisor (SPV)' : '') + '" class="btn-approve mr-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors pop bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-30 disabled:cursor-not-allowed">Approve</button>' +
+            '<button data-no="' + esc(r.no_registrasi) + '" data-field="mgr" data-approve="rejected" ' + (mgrDisabled ? 'disabled ' : '') + 'title="' + (spvNotYet ? 'Menunggu persetujuan Supervisor (SPV)' : '') + '" class="btn-reject px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors pop bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-30 disabled:cursor-not-allowed">Reject</button>';
+        } else if (canSpv) {
+          actionCell =
+            '<button data-no="' + esc(r.no_registrasi) + '" data-field="spv" data-approve="approved" ' + (spvLocked ? 'disabled ' : '') + 'class="btn-approve mr-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors pop bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-30 disabled:cursor-not-allowed">Approve</button>' +
+            '<button data-no="' + esc(r.no_registrasi) + '" data-field="spv" data-approve="rejected" ' + (spvLocked ? 'disabled ' : '') + 'class="btn-reject px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors pop bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-30 disabled:cursor-not-allowed">Reject</button>';
+        }
+        actionCell +=
+          '<button data-history="' + esc(r.no_registrasi) + '" title="Riwayat approval" ' +
+          'class="ml-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors pop bg-slate-700 hover:bg-slate-600 text-slate-200 inline-flex items-center align-middle">' +
+          '<i data-lucide="history" style="width:13px;height:13px"></i></button>';
+
+        return '<tr class="border-b border-slate-800 hover:bg-slate-800/40 transition-colors">' +
+          '<td class="px-4 py-3 font-mono text-xs text-sky-400 whitespace-nowrap">' + esc(r.no_registrasi) + '</td>' +
+          '<td class="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">' + fmtTanggal(r.timestamp) + '</td>' +
+          '<td class="px-4 py-3">' +
+            '<div class="text-white text-sm font-semibold">' + esc(r.nama_teknisi) + '</div>' +
+            '<div class="text-[11px] text-slate-500">' + esc(r.role_pengaju || '') + ' · ' + esc(r.username_teknisi) + '</div>' +
+            '<div class="text-[11px] text-sky-400/80 whitespace-nowrap">' + esc(r.no_ejo || '-') + ' · ' + esc(r.mesin_area || '-') + '</div>' +
+          '</td>' +
+          '<td class="px-4 py-3">' +
+            '<div class="font-mono text-xs text-sky-400">' + esc(r.item_code) + '</div>' +
+            '<div class="text-slate-300 text-xs leading-tight max-w-[220px]" title="' + esc(r.spesifikasi_lengkap || '') + '">' + esc(r.deskripsi_barang) + '</div>' +
+            '<div class="text-[11px] text-slate-500 mt-0.5">' + esc(r.purpose || '-') + (r.uom ? ' · ' + esc(r.uom) : '') + '</div>' +
+           '</td>' +
+           '<td class="px-4 py-3 text-center">' + (r.urgency === 'Urgent' ? '<span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">Urgent</span>' : '<span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-400">Normal</span>') + '</td>' +
+           '<td class="px-4 py-3 text-center text-white font-semibold">' + Number(r.qty_diminta) + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap">' + approvalBadgePair(r.status_approval_spv, r.status_approval_manager) + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap">' + pengadaanCell + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap">' + actionCell + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    // ---- Handler aksi tombol Approve/Reject (delegation) ----
+    async function setApprovalStatus(no, field, val) {
+      const payload = { username: user.username };
+      payload[field] = val; // status_approval_spv | status_approval_manager
+      try {
+        await updatePengajuanStatus(no, payload);
+        toast('Pengajuan ' + no + ' ' + (val === 'approved' ? 'disetujui' : 'ditolak') + '.', true);
+        await refreshApprovalTable(true);
+      } catch (err) {
+        toast(err.message, false);
+      }
+    }
+
+    // ---- Handler dropdown status pengadaan ----
+    async function setPengadaanStatus(no, val) {
+      try {
+        await updatePengajuanStatus(no, { username: user.username, status_pengadaan: val });
+        toast('Status pengadaan ' + no + ' → ' + val + '.', true);
+        await refreshApprovalTable(true);
+      } catch (err) {
+        toast(err.message, false);
+      }
+    }
+
+    // =================== RIWAYAT APPROVAL (AUDIT TRAIL) ===================
+    const FIELD_LABEL = {
+      status_approval_spv: 'Approval SPV',
+      status_approval_manager: 'Approval Manager',
+      status_pengadaan: 'Status Pengadaan',
+    };
+
+    async function openRiwayat(no) {
+      $('riwayat-sub').textContent = no;
+      $('riwayat-body').innerHTML =
+        '<div class="py-10 text-center text-slate-500 text-sm">Memuat riwayat…</div>';
+      $('modal-riwayat').classList.remove('hidden');
+      try {
+        const res = await fetch(API + '/api/pengajuan/' + encodeURIComponent(no) + '/log');
+        const json = await res.json();
+        if (!res.ok || json.status !== 'ok') throw new Error(json.message || 'Gagal memuat riwayat');
+        renderRiwayat(json.data);
+        lucide.createIcons();
+      } catch (err) {
+        $('riwayat-body').innerHTML =
+          '<div class="py-10 text-center text-rose-400 text-sm">' + esc(err.message) + '</div>';
+      }
+    }
+
+    function renderRiwayat(rows) {
+      const body = $('riwayat-body');
+      if (!rows.length) {
+        body.innerHTML = '<div class="py-10 text-center text-slate-500 text-sm">Belum ada riwayat perubahan.</div>';
+        return;
+      }
+      body.innerHTML = '<ol class="relative border-l border-slate-700 ml-2 space-y-5">' + rows.map(function (l) {
+        return '<li class="ml-5 relative">' +
+          '<span class="absolute -left-[26px] mt-1.5 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-slate-900"></span>' +
+          '<p class="text-white text-xs font-bold">' + esc(FIELD_LABEL[l.field] || l.field) + '</p>' +
+          '<p class="text-xs mt-1 flex items-center flex-wrap gap-1.5">' + approvalBadge(l.old_value) +
+            '<span class="text-slate-500">→</span>' + approvalBadge(l.new_value) + '</p>' +
+          '<p class="text-[11px] text-slate-500 mt-1.5">' + esc(l.actor_name || '-') + ' · ' +
+            esc(l.actor_role || '-') + ' · ' + fmtTanggal(l.created_at) + '</p>' +
+        '</li>';
+      }).join('') + '</ol>';
+    }
+
+    $('tbody-pengajuan').addEventListener('click', function (e) {
+      const hist = e.target.closest('[data-history]');
+      if (hist) { openRiwayat(hist.dataset.history); return; }
+      const btn = e.target.closest('[data-approve]');
+      if (!btn) return;
+      const no = btn.dataset.no;
+      const val = btn.dataset.approve;
+      const field = btn.dataset.field === 'mgr' ? 'status_approval_manager' : 'status_approval_spv';
+      btn.disabled = true;
+      setApprovalStatus(no, field, val).finally(function () { btn.disabled = false; });
+    });
+
+    $('tbody-pengajuan').addEventListener('change', function (e) {
+      if (!e.target.matches('select[data-no]')) return;
+      const no = e.target.dataset.no;
+      const val = e.target.value;
+      e.target.disabled = true;
+      setPengadaanStatus(no, val).finally(function () { e.target.disabled = false; });
+    });
+
+    $('btn-approval-refresh').addEventListener('click', function () {
+      refreshApprovalTable(false).then(function (ok) {
+        if (ok) toast('Data pengajuan diperbarui.', true);
+      });
+    });
+
+    // =================== MONITORING: CARI / FILTER / EXPORT ===================
+    $('approval-search').addEventListener('input', function () { approvalPage = 1; applyApprovalView(); });
+    $('approval-filter').addEventListener('change', function () { approvalPage = 1; applyApprovalView(); });
+    $('btn-approval-xlsx').addEventListener('click', exportApprovalXlsx);
+    $('approval-pagination').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-approval-page]');
+      if (!btn || btn.disabled) return;
+      approvalPage += (btn.dataset.approvalPage === 'next' ? 1 : -1);
+      applyApprovalView();
+    });
+
+    // =================== MODAL MONTHLY REPORT ===================
+    let reportChart = null; // instance Chart.js agar bisa di-destroy saat ganti tipe
+    let reportRows = [];    // cache data pengajuan untuk laporan
+    const REPORT_COLORS = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#fb7185', '#f472b6', '#94a3b8'];
+    const MONTHS_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+    function summarize(rows) {
+      return {
+        total: rows.length,
+        menunggu:  rows.filter((r) => r.status_approval_spv === 'Menunggu').length,
+        disetujui: rows.filter((r) => r.status_approval_spv === 'Disetujui').length,
+        ditolak:   rows.filter((r) => r.status_approval_spv === 'Ditolak').length,
+      };
+    }
+
+    function renderReportSummary(rows) {
+      const s = summarize(rows);
+      $('lbl-total').textContent = s.total;
+      $('lbl-menunggu').textContent = s.menunggu;
+      $('lbl-disetujui').textContent = s.disetujui;
+      $('lbl-ditolak').textContent = s.ditolak;
+    }
+
+    // Ambil kunci bulan 'YYYY-MM' dari timestamp.
+    function monthKey(ts) {
+      const d = new Date(ts);
+      if (isNaN(d.getTime())) return '';
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
+
+    function monthLabel(key) {
+      const p = String(key).split('-');
+      if (p.length !== 2) return key;
+      return MONTHS_ID[Number(p[1]) - 1] + ' ' + p[0];
+    }
+
+    // Isi dropdown Periode dari data yang tersedia (terbaru di atas).
+    function populateReportMonths(rows) {
+      const sel = $('report-month');
+      const current = sel.value;
+      const keys = Array.from(new Set(rows.map((r) => monthKey(r.timestamp)).filter(Boolean))).sort().reverse();
+      sel.innerHTML = '<option value="all">Semua Bulan</option>' +
+        keys.map((k) => '<option value="' + k + '">' + monthLabel(k) + '</option>').join('');
+      sel.value = keys.indexOf(current) >= 0 ? current : 'all';
+    }
+
+    function getFilteredReportRows() {
+      const m = $('report-month').value;
+      if (m === 'all') return reportRows;
+      return reportRows.filter((r) => monthKey(r.timestamp) === m);
+    }
+
+    // Kelompokkan pengajuan sesuai pilihan -> { labels, values }.
+    function buildReportData(rows, group) {
+      const counts = {};
+      rows.forEach((r) => {
+        let key;
+        if (group === 'month') key = monthKey(r.timestamp) || 'Tanpa tanggal';
+        else if (group === 'approval') key = r.status_approval_spv || '-';
+        else key = r.status_pengadaan || 'Belum ada status';
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      let keys = Object.keys(counts);
+      if (group === 'month') keys = keys.sort();
+      const labels = keys.map((k) => (group === 'month' ? monthLabel(k) : k));
+      return { labels: labels, values: keys.map((k) => counts[k]) };
+    }
+
+    function renderReportChart(rows) {
+      const type = $('report-type').value;      // pie | doughnut | bar | line
+      const group = $('report-group').value;    // pengadaan | approval | month
+      if (reportChart) reportChart.destroy();   // buang chart lama sebelum render ulang
+      const { labels, values } = buildReportData(rows, group);
+      const isPie = (type === 'pie' || type === 'doughnut');
+
+      reportChart = new Chart($('reportChart').getContext('2d'), {
+        type: type,
+        data: {
+          labels: labels,
+          datasets: [{
+            label: group === 'month' ? 'Jumlah per Bulan' : 'Jumlah Pengajuan',
+            data: values,
+            backgroundColor: isPie ? REPORT_COLORS.slice(0, labels.length) : '#38bdf8',
+            borderColor: type === 'line' ? '#38bdf8' : '#020617',
+            borderWidth: 2,
+            fill: false,
+            tension: 0.3,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: isPie ? 'right' : 'top',
+              labels: { color: '#e2e8f0', boxWidth: 12, padding: 14 },
+            },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              titleColor: '#f1f5f9',
+              bodyColor: '#cbd5e1',
+              borderColor: '#334155',
+              borderWidth: 1,
+            },
+          },
+          scales: isPie ? {} : {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+            y: {
+              beginAtZero: true,
+              ticks: { color: '#94a3b8', stepSize: 1, precision: 0 },
+              grid: { color: '#1e293b' },
+            },
+          },
+        },
+      });
+    }
+
+    function renderReport() {
+      const rows = getFilteredReportRows();
+      renderReportSummary(rows);
+      renderReportChart(rows);
+    }
+
+    async function loadReport() {
+      try {
+        reportRows = await fetchPengajuan();
+        populateReportMonths(reportRows);
+        renderReport();
+        lucide.createIcons();
+      } catch (err) {
+        toast(err.message, false);
+      }
+    }
+
+     function openReportModal() {
+       $('modal-report').classList.remove('hidden');
+       loadReport();
+     }
+
+     // =================== PR SUMMARY ===================
+     async function openPrSummaryModal() {
+       $('modal-prsummary').classList.remove('hidden');
+       renderPrSummary();
+       lucide.createIcons();
+     }
+     async function renderPrSummary() {
+       const box = $('prsummary-list');
+       const empty = $('prsummary-empty');
+       try {
+         const res = await fetch(API + '/api/pengajuan/summary?username=' + encodeURIComponent(user.username));
+         const json = await res.json();
+         if (!res.ok || json.status !== 'ok') throw new Error(json.message || 'Gagal memuat PR Summary');
+         const rows = json.data || [];
+         if (!rows.length) { box.innerHTML = ''; empty.classList.remove('hidden'); return; }
+         empty.classList.add('hidden');
+         box.innerHTML = rows.map(function (r) {
+           const badge = r.urgency === 'Urgent'
+             ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400">Urgent</span>'
+             : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-400">Normal</span>';
+           const jenisBadge = r.jenis_pengajuan === 'jasa'
+             ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400">Jasa</span>'
+             : '';
+           return '<div class="bg-slate-800/60 border border-slate-700 rounded-xl p-4 flex flex-wrap items-center gap-3">' +
+             '<div class="flex-1 min-w-[200px]">' +
+               '<div class="text-white font-semibold text-sm">' + esc(r.no_registrasi) + ' ' + badge + ' ' + jenisBadge + '</div>' +
+               '<div class="text-[11px] text-slate-400 mt-0.5">' + esc(r.nama_teknisi || '-') + ' · ' + esc(r.mesin_area || '-') + ' · ' + esc(r.purpose || '-') + '</div>' +
+             '</div>' +
+             '<div class="text-[11px] text-slate-400">' + Number(r.qty_diminta) + ' pcs</div>' +
+             '<button data-pr-no="' + esc(r.no_registrasi) + '" data-pr-action="approved" class="pr-approve px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors">Approve</button>' +
+             '<button data-pr-no="' + esc(r.no_registrasi) + '" data-pr-action="rejected" class="pr-reject px-3 py-1.5 rounded-lg text-[11px] font-bold bg-rose-600 hover:bg-rose-500 text-white transition-colors">Reject</button>' +
+           '</div>';
+         }).join('');
+       } catch (err) {
+         box.innerHTML = '<div class="text-center py-10 text-rose-400 text-sm">' + esc(err.message) + '</div>';
+       }
+     }
+     $('prsummary-list').addEventListener('click', function (e) {
+       const btn = e.target.closest('[data-pr-no]');
+       if (!btn) return;
+       const no = btn.dataset.prNo;
+       const action = btn.dataset.prAction;
+       fetch(API + '/api/pengajuan/' + encodeURIComponent(no) + '/status', {
+         method: 'PUT',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ username: user.username, status_approval_spv: action }),
+       }).then(function (res) { return res.json(); }).then(function (json) {
+         if (json.status === 'ok') { toast('Pengajuan ' + no + ' ' + (action === 'approved' ? 'disetujui' : 'ditolak') + '.', true); renderPrSummary(); }
+         else toast(json.message || 'Gagal.', false);
+       }).catch(function () { toast('Gagal menghubungi server.', false); });
+     });
+
+    // Unduh rekap (label, jumlah) sebagai CSV.
+    function exportReportCsv() {
+      const group = $('report-group').value;
+      const { labels, values } = buildReportData(getFilteredReportRows(), group);
+      const title = group === 'month' ? 'Bulan' : (group === 'approval' ? 'Status Approval' : 'Status Pengadaan');
+      const lines = [title + ',Jumlah'];
+      labels.forEach((l, i) => lines.push('"' + String(l).replace(/"/g, '""') + '",' + values[i]));
+      const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'monthly-report-' + $('report-month').value + '.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // Unduh rekap yang sama sebagai file Excel (.xlsx).
+    async function exportReportXlsx() {
+      const group = $('report-group').value;
+      const rows = getFilteredReportRows();
+      if (!rows.length) { toast('Tidak ada data untuk diexport.', false); return; }
+      const { labels, values } = buildReportData(rows, group);
+      const title = group === 'month' ? 'Bulan' : (group === 'approval' ? 'Status Approval' : 'Status Pengadaan');
+      const data = labels.map((l, i) => ({ label: l, jumlah: values[i] }));
+      try {
+        await downloadXlsx(
+          'monthly-report-' + $('report-month').value,
+          'Monthly Report',
+          [{ key: 'label', label: title }, { key: 'jumlah', label: 'Jumlah' }],
+          data
+        );
+        toast('File Excel berhasil diunduh.', true);
+      } catch (err) {
+        toast(err.message, false);
+      }
+    }
+
+    ['report-type', 'report-group', 'report-month'].forEach(function (id) {
+      $(id).addEventListener('change', renderReport);
+    });
+
+    $('btn-report-refresh').addEventListener('click', function () {
+      loadReport();
+      toast('Laporan diperbarui.', true);
+    });
+
+    $('btn-report-export').addEventListener('click', exportReportCsv);
+    $('btn-report-xlsx').addEventListener('click', exportReportXlsx);
+
+    // =================== MODAL STOK: CARI / FILTER / EXPORT ===================
+    $('stok-search').addEventListener('input', function () { stokPage = 1; applyStokView(); });
+    $('stok-filter').addEventListener('change', function () { stokPage = 1; applyStokView(); });
+    $('btn-stok-export').addEventListener('click', exportStokCsv);
+    $('btn-stok-xlsx').addEventListener('click', exportStokXlsx);
+    $('stok-pagination').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-stok-page]');
+      if (!btn || btn.disabled) return;
+      stokPage += (btn.dataset.stokPage === 'next' ? 1 : -1);
+      applyStokView();
+    });
+
+    // =================== TOUR GUIDE ===================
+    var TOUR_STEPS = {
+      'teknisi': [
+        { sel: '#greet-title', title: 'Selamat Datang!', desc: 'Halo! Ini adalah dashboard kamu. Di sini kamu bisa ajukan sparepart yang dibutuhkan.' },
+        { sel: '[data-action="bq"]', title: 'BQ Personal', desc: 'Klik di sini untuk buat pengajuan barang baru (Berita Acara). Isi data barang, jumlah, dan alasan pengajuan.' },
+        { sel: '[data-action="stok"]', title: 'Cek Stok', desc: 'Mau tahu stok barang yang tersedia? Klik di sini untuk lihat daftar sparepart lengkap.' },
+        { sel: '[data-action="bqsummary"]', title: 'BQ Summary', desc: 'Pantau status pengajuan kamu. Sudah disetujui, ditolak, atau masih diproses.' },
+        { sel: '#btn-logout', title: 'Logout', desc: 'Selesai kerja? Klik tombol ini untuk keluar dari sistem. Jangan lupa logout ya!' },
+      ],
+      'supervisor 1': [
+        { sel: '#greet-title', title: 'Selamat Datang, Supervisor 1!', desc: 'Kamu punya akses penuh untuk approve pengajuan, lihat laporan, dan kelola stok.' },
+        { sel: '[data-action="prsummary"]', title: 'PR Summary', desc: 'Lihat ringkasan Purchase Request dari seluruh tim. Pantau semua pengajuan di satu tempat.' },
+        { sel: '[data-action="monitoring"]', title: 'Approval BQ', desc: 'Review dan setujui (atau tolak) pengajuan barang dari teknisi. Klik untuk lihat daftar yang menunggu persetujuan.' },
+        { sel: '[data-action="report"]', title: 'Monthly Report', desc: 'Lihat laporan bulanan pengajuan barang. Bisa export ke Excel juga lho.' },
+        { sel: '[data-action="critical"]', title: 'Critical Part', desc: 'Ini daftar sparepart kritis yang harus selalu tersedia. Pantau jangan sampai kosong.' },
+        { sel: '#btn-logout', title: 'Logout', desc: 'Selesai? Klik logout untuk keluar. Tetap jaga keamanan akun ya!' },
+      ],
+      'supervisor 2': [
+        { sel: '#greet-title', title: 'Selamat Datang, Supervisor 2!', desc: 'Kamu bisa approve pengajuan, lihat stok, dan pantau critical parts.' },
+        { sel: '[data-action="bqsummary"]', title: 'BQ Summary', desc: 'Lihat ringkasan seluruh pengajuan BQ. Semua status ada di sini.' },
+        { sel: '[data-action="monitoring"]', title: 'Approval BQ', desc: 'Review pengajuan dari teknisi. Setujui atau beri catatan jika perlu revisi.' },
+        { sel: '[data-action="critical"]', title: 'Critical Part', desc: 'Pantau sparepart kritis. Jangan sampai stok habis dan mengganggu produksi.' },
+        { sel: '[data-action="stok"]', title: 'On Hand Stock', desc: 'Cek stok semua sparepart yang tersedia di gudang.' },
+        { sel: '#btn-logout', title: 'Logout', desc: 'Klik logout saat selesai bekerja.' },
+      ],
+      'officer': [
+        { sel: '#greet-title', title: 'Selamat Datang, Officer!', desc: 'Kamu bertanggung jawab proses pengadaan barang. Lihat pengajuan dan urus pembelian.' },
+        { sel: '[data-action="bqsummary"]', title: 'BQ Summary', desc: 'Lihat semua pengajuan BQ yang masuk. Cek status dan prioritaskan yang urgent.' },
+        { sel: '[data-action="monitoring"]', title: 'Monitoring', desc: 'Pantau perjalanan setiap pengajuan. Dari diajukan sampai barang sampai.' },
+        { sel: '[data-action="critical"]', title: 'Critical Part', desc: 'Daftar sparepart kritis yang perlu segera diurus jika stok menipis.' },
+        { sel: '[data-action="stok"]', title: 'On Hand Stock', desc: 'Cek stok terkini sebelum proses pengadaan.' },
+        { sel: '#btn-logout', title: 'Logout', desc: 'Selesai? Logout ya biar akun aman.' },
+      ],
+      'manager': [
+        { sel: '#greet-title', title: 'Selamat Datang, Pak Manager!', desc: 'Dashboard ini menampilkan ringkasan seluruh aktivitas sparepart. Kamu bisa approve, pantau laporan, dan cek stok.' },
+        { sel: '[data-action="stok"]', title: 'On Hand Stock', desc: 'Lihat stok semua sparepart secara real-time. Filter berdasarkan kategori atau kata kunci.' },
+        { sel: '[data-action="report"]', title: 'Monthly Report', desc: 'Laporan bulanan pengajuan barang. Bisa export ke Excel untuk presentasi.' },
+        { sel: '[data-action="bqsummary"]', title: 'BQ Summary', desc: 'Ringkasan seluruh pengajuan BQ. Berapa yang menunggu, disetujui, atau sudah selesai.' },
+        { sel: '[data-action="monitoring"]', title: 'Approval BQ', desc: 'Approval akhir untuk pengajuan urgent. Kamu yang punya wewenang terakhir.' },
+        { sel: '[data-action="critical"]', title: 'Critical Part', desc: 'Sparepart kritis yang harus selalu dipantau. Jangan sampai kosong!' },
+        { sel: '#btn-logout', title: 'Logout', desc: 'Klik logout saat selesai. Terima kasih sudah memantau!' },
+      ],
+    };
+
+    function tourKey(role) { return 'tour_done_' + (role || '').toLowerCase(); }
+
+    function startTour() {
+      if (!user) return;
+      var key = tourKey(user.role);
+      if (localStorage.getItem(key)) return;
+      var steps = TOUR_STEPS[user.role];
+      if (!steps || !steps.length) return;
+      var idx = 0;
+      var overlay = $('tour-overlay');
+      var spotlight = $('tour-spotlight');
+
+      function show(i) {
+        var s = steps[i];
+        var el = document.querySelector(s.sel);
+        if (!el) { idx++; if (idx < steps.length) show(idx); else finish(); return; }
+        $('tour-title').textContent = s.title;
+        $('tour-desc').textContent = s.desc;
+        $('tour-step').textContent = (i + 1) + ' / ' + steps.length;
+        var dots = $('tour-dots');
+        dots.innerHTML = '';
+        for (var d = 0; d < steps.length; d++) {
+          var dot = document.createElement('span');
+          dot.className = 'w-2 h-2 rounded-full transition-colors';
+          dot.style.background = d <= i ? '#3b82f6' : '#334155';
+          dots.appendChild(dot);
+        }
+        $('tour-next').textContent = i === steps.length - 1 ? 'Mengerti!' : 'Lanjut';
+        overlay.classList.add('active');
+        el.scrollIntoView({ behavior: 'instant', block: 'center' });
+        requestAnimationFrame(function () {
+          var r = el.getBoundingClientRect();
+          spotlight.style.left = (r.left - 8) + 'px';
+          spotlight.style.top = (r.top - 8) + 'px';
+          spotlight.style.width = (r.width + 16) + 'px';
+          spotlight.style.height = (r.height + 16) + 'px';
+        });
+      }
+
+      function finish() {
+        overlay.classList.remove('active');
+        localStorage.setItem(key, '1');
+      }
+
+      $('tour-next').onclick = function () {
+        idx++;
+        if (idx >= steps.length) finish();
+        else show(idx);
+      };
+      $('tour-skip').onclick = function () { finish(); };
+      show(0);
+    }
 
     // =================== INIT ===================
     (function () {
@@ -382,9 +2242,35 @@
         showDash(s);
       } else {
         showLogin();
+        var remembered = localStorage.getItem('user_remember');
+        if (remembered) {
+          try {
+            var rUser = JSON.parse(remembered);
+            if (rUser.username) {
+              $('inp-user').value = rUser.username;
+              $('chk-remember').checked = true;
+              $('inp-pass').focus();
+            }
+          } catch {}
+        }
       }
-      lucide.createIcons();
-    })();
-  </script>
+     // Toggle Jenis Pengajuan: Sparepart/Jasa.
+     $('f-jenis').addEventListener('change', function () {
+       const isJasa = this.value === 'jasa';
+       const itemDiv = $('f-itemcode').closest('div');
+       if (isJasa) {
+         itemDiv.style.display = 'none';
+         $('f-jasa-box').classList.remove('hidden');
+       } else {
+         itemDiv.style.display = '';
+         $('f-jasa-box').classList.add('hidden');
+         $('f-jasa-ket').value = '';
+       }
+     });
+     // Init: sembunyikan box jasa jika sparepart.
+     if ($('f-jenis').value === 'jasa') $('f-jenis').dispatchEvent(new Event('change'));
+     lucide.createIcons();
+   })();
+ </script>
 </body>
 </html>

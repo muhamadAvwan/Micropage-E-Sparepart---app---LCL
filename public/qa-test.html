@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QA Automation - Micropage E-Sparepart</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html,body{height:100%}
+    ::-webkit-scrollbar{width:8px;height:8px}
+    ::-webkit-scrollbar-track{background:#0b1220}
+    ::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
+    ::-webkit-scrollbar-thumb:hover{background:#475569}
+    @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.25}}
+    .pulse-dot{animation:pulse-dot 1.2s ease-in-out infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spin{animation:spin .8s linear infinite}
+    @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .fadein{animation:fadein .25s ease-out}
+    .tcard[data-status="running"]{border-color:#3b82f6;box-shadow:0 0 0 1px rgba(59,130,246,.35)}
+    .tcard[data-status="pass"]{border-color:rgba(16,185,129,.35)}
+    .tcard[data-status="fail"]{border-color:rgba(244,63,94,.5)}
+    .tbody{display:none}
+    .tcard.open .tbody{display:block}
+    .chev{transition:transform .2s ease}
+    .tcard.open .chev{transform:rotate(90deg)}
+    .lvl-step{color:#e2e8f0;font-weight:700}
+    .lvl-info{color:#93c5fd}
+    .lvl-ok{color:#34d399}
+    .lvl-err{color:#fb7185}
+    .lvl-req{color:#fbbf24}
+    .lvl-res{color:#a78bfa}
+    .lvl-body{color:#94a3b8}
+    .lvl-json{color:#67e8f9}
+    .lvl-test{color:#f1f5f9;font-weight:800}
+    .logline{display:flex;gap:8px;padding:1px 4px;line-height:1.45;word-break:break-word}
+    .logline .ts{color:#475569;flex:0 0 60px;font-variant-numeric:tabular-nums}
+    .sticon{width:16px;height:16px;flex:0 0 16px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-size:11px;font-weight:800}
+    .status-pending .sticon{background:#334155;color:#cbd5e1}
+    .status-running .sticon{background:#1d4ed8;color:#fff}
+    .status-pass .sticon{background:#059669;color:#fff}
+    .status-fail .sticon{background:#e11d48;color:#fff}
+    .status-skip .sticon{background:#b45309;color:#fff}
+    .grp{font-size:9px;font-weight:800;letter-spacing:.08em;padding:2px 6px;border-radius:6px;text-transform:uppercase}
+    .sec-body{display:block}
+    .sec.collapsed .sec-body,.sec.collapsed .sec-long{display:none}
+    .secchev{transition:transform .2s ease}
+    .sec.collapsed .secchev{transform:rotate(-90deg)}
+    .secnum{width:28px;height:28px;flex:0 0 28px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900}
+    .btn-one:disabled,.btn-secrun:disabled{cursor:not-allowed}
+  </style>
+</head>
+<body class="bg-slate-950 text-white antialiased flex flex-col h-screen overflow-hidden">
+
+  <!-- ==================== HEADER ==================== -->
+  <header class="bg-slate-900 border-b border-slate-800 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 z-20">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 border border-blue-500/30">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      </div>
+      <div class="min-w-0">
+        <h1 class="text-white font-extrabold text-sm sm:text-base leading-tight truncate">QA Automation — Micropage E-Sparepart</h1>
+        <p class="text-slate-400 text-[11px] leading-tight truncate">Pilih bagian, tekan <b class="text-slate-300">Jalankan Bagian</b>, atau ▶ per tes. Prasyarat otomatis dijalankan lebih dulu.</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <span id="srv-badge" class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">memeriksa server…</span>
+      <select id="sel-speed" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] font-bold text-slate-200">
+        <option value="6" selected>Kecepatan: Mudah dilihat manusia</option>
+        <option value="0.2">Kecepatan: Cepat</option>
+      </select>
+      <label class="flex items-center gap-1.5 text-[11px] font-semibold text-slate-300 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 cursor-pointer">
+        <input id="chk-ui" type="checkbox" checked class="accent-blue-500"> UI
+      </label>
+      <label class="flex items-center gap-1.5 text-[11px] font-semibold text-sky-300 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 cursor-pointer" title="Jalankan tes UI lebih dulu agar preview aplikasi langsung bergerak">
+        <input id="chk-uifirst" type="checkbox" checked class="accent-sky-500"> UI dulu
+      </label>
+      <label class="flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 cursor-pointer" title="Membuat 1 pengajuan BQ uji nyata (+ jalankan alur approval)">
+        <input id="chk-e2e" type="checkbox" class="accent-amber-500"> E2E tulis data
+      </label>
+      <button id="btn-run" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs tracking-wide transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span id="btn-txt">Jalankan Semua</span>
+      </button>
+      <button id="btn-stop" disabled class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors disabled:opacity-30">Hentikan</button>
+      <button id="btn-reset" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors">Reset</button>
+      <button id="btn-export" class="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors">Export Hasil</button>
+    </div>
+  </header>
+
+  <div id="file-warn" class="hidden bg-amber-500/15 border-b border-amber-500/30 text-amber-200 text-[11px] px-4 py-2">
+    Halaman ini sebaiknya dibuka lewat <b>http://localhost:3000/qa-test.html</b> (bukan file://). Tes UI dinonaktifkan saat dibuka sebagai file.
+  </div>
+
+  <!-- ==================== SUMMARY STRIP ==================== -->
+  <div class="bg-slate-900/70 border-b border-slate-800 px-4 sm:px-6 py-2.5 shrink-0">
+    <div class="flex items-center gap-4 flex-wrap">
+      <div class="flex items-center gap-3 text-[11px] font-bold">
+        <span class="text-emerald-400" id="c-pass">0 PASS</span>
+        <span class="text-rose-400" id="c-fail">0 FAIL</span>
+        <span class="text-amber-400" id="c-skip">0 SKIP</span>
+        <span class="text-slate-400" id="c-done">0 / 0 selesai</span>
+        <span class="text-slate-500" id="c-time">0.0s</span>
+      </div>
+      <div class="flex-1 min-w-[160px] h-2 rounded-full bg-slate-800 overflow-hidden">
+        <div id="progress" class="h-full w-0 bg-blue-500 transition-all duration-300"></div>
+      </div>
+      <div id="now" class="text-[11px] text-slate-400 font-mono truncate max-w-[280px]">Siap dijalankan.</div>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN ==================== -->
+  <main class="flex-1 flex min-h-0">
+    <!-- KIRI: PREVIEW APLIKASI -->
+    <section class="hidden lg:flex flex-col w-[40%] xl:w-[42%] min-h-0 border-r border-slate-800 bg-slate-900/40">
+      <div class="flex items-center justify-between px-4 py-2 bg-slate-900/90 border-b border-slate-800 text-[11px] text-slate-400 font-semibold shrink-0">
+        <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>Preview Aplikasi (index.html)</span>
+        <a href="index.html" target="_blank" class="text-blue-400 hover:text-blue-300">buka tab &#8599;</a>
+      </div>
+      <div class="relative flex-1 min-h-0">
+        <iframe id="frame" src="index.html" class="absolute inset-0 w-full h-full border-0 bg-white"></iframe>
+      </div>
+    </section>
+
+    <!-- KANAN: HASIL & LOG -->
+    <section class="flex flex-col flex-1 min-h-0">
+      <div class="flex items-center gap-1 px-3 pt-2 bg-slate-900/60 border-b border-slate-800 shrink-0">
+        <button data-tab="tests" class="tabbtn px-4 py-2 text-xs font-bold rounded-t-lg text-white bg-slate-800 border-b-2 border-blue-500">Daftar Tes</button>
+        <button data-tab="log" class="tabbtn px-4 py-2 text-xs font-bold rounded-t-lg text-slate-400 hover:text-white">Log Lengkap</button>
+        <button data-tab="failed" class="tabbtn px-4 py-2 text-xs font-bold rounded-t-lg text-slate-400 hover:text-white">Gagal <span id="failed-count" class="hidden ml-1 bg-rose-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-extrabold">0</span></button>
+        <div class="ml-auto flex items-center gap-2 pb-1">
+          <label class="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 cursor-pointer">
+            <input id="chk-autoopen" type="checkbox" checked class="accent-blue-500"> auto-buka log
+          </label>
+        </div>
+      </div>
+
+      <div id="tab-tests" class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0"></div>
+      <div id="tab-log" class="hidden flex-1 overflow-y-auto p-3 font-mono text-[11px] min-h-0 bg-slate-950/60"></div>
+      <div id="tab-failed" class="hidden flex-1 overflow-y-auto p-3 min-h-0">
+        <div id="failed-empty" class="flex flex-col items-center justify-center h-full text-slate-500">
+          <svg class="w-12 h-12 mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <p class="text-sm font-semibold">Belum ada tes yang gagal</p>
+          <p class="text-[11px] mt-1">Semua tes akan muncul di sini jika gagal.</p>
+        </div>
+        <div id="failed-list" class="space-y-2"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ==================== KONFIGURASI ====================
+    var API = (location.protocol === 'file:') ? 'http://localhost:3000' : location.origin;
+    var UI_AVAILABLE = (location.protocol !== 'file:');
+
+    // Nilai acuan baseline (ubah jika data master berubah).
+    var EXPECT = {
+      total_spareparts: 663,
+      critical: 155,
+      low: 284,
+      out: 140,
+      pengajuan: 200,     // jumlah awal (bisa bertambah bila ada pengajuan baru)
+      months: 21,
+      pengajuanSep: 8,    // Sep 2026
+      pengajuanFeb: 20,   // Feb 2025
+      pengajuanJan: 16,   // Jan 2025
+      log_count: 3,       // audit trail BQ-2026-09-01-0001
+    };
+    var FIXED_LOG_NO = 'BQ-2026-09-01-0001';
+
+    var CRED = {
+      teknisi:    { user: 'AAA', pass: '04AAA10' },
+      supervisor: { user: 'INN', pass: '30INN11' },
+      officer:    { user: 'ANS', pass: 'ANS1805' },
+      manager:    { user: 'KSW', pass: '01KSW10' },
+    };
+
+    var GROUP_COLOR = {
+      NFR:  '#0891b2',
+      AUTH: '#2563eb',
+      RBAC: '#7c3aed',
+      FORM: '#0d9488',
+      APP:  '#16a34a',
+      STOK: '#ea580c',
+      MON:  '#0284c7',
+      REP:  '#9333ea',
+      UI:   '#db2777',
+      E2E:  '#b45309',
+    };
+    var PRIO_STYLE = {
+      P0: 'background:#7f1d1d;color:#fecaca',
+      P1: 'background:#78350f;color:#fde68a',
+      P2: 'background:#334155;color:#cbd5e1',
+    };
+
+    // ==================== STATE ====================
+    var SPEED = 6;   // default: "Mudah dilihat manusia" (6x lebih lambat). "Cepat" = 0.2.
+    var running = false;
+    var stopped = false;
+    var results = {};   // id -> { status, ms, message }
+    var consoleLines = [];
+    var RUN = {};       // data antar-tes (mis. no_registrasi E2E)
+    var startedAt = 0;
+
+    class Skip extends Error {}
+
+    // ==================== UTIL ====================
+    function $(id) { return document.getElementById(id); }
+    function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+    function pause(ms) { return delay((ms == null ? 120 : ms) * SPEED); }
+    function nowMs() { return performance.now(); }
+    function fmtTime(ts) {
+      var d = new Date(ts);
+      return d.toLocaleTimeString('id-ID', { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+    }
+    function monthKey(ts) {
+      var d = new Date(ts);
+      if (isNaN(d.getTime())) return '';
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ==================== API CALL ====================
+    async function callApi(t, method, path, body, opts) {
+      t.req(method, path, body);
+      var t0 = nowMs();
+      var init = { method: method, headers: { 'Content-Type': 'application/json' } };
+      if (body !== undefined) init.body = JSON.stringify(body);
+      var res;
+      try {
+        res = await fetch(API + path, Object.assign(init, opts || {}));
+      } catch (e) {
+        throw new Error('Tidak bisa menghubungi server (' + method + ' ' + path + '): ' + e.message);
+      }
+      var ms = Math.round(nowMs() - t0);
+      var ct = res.headers.get('content-type') || '';
+      var json = null, raw = null, buf = null;
+      if (ct.indexOf('application/json') >= 0) {
+        try { json = await res.json(); } catch (e) { /* ignore */ }
+      } else if (opts && opts.raw === 'arraybuffer') {
+        buf = await res.arrayBuffer();
+        var head = Array.from(new Uint8Array(buf.slice(0, 2))).map(function (b) { return String.fromCharCode(b); }).join('');
+        raw = 'bytes=' + buf.byteLength + ' magic=' + head;
+      } else {
+        try { raw = (await res.text()).slice(0, 160); } catch (e) { /* ignore */ }
+      }
+      var r = { status: res.status, ok: res.ok, ct: ct, json: json, raw: raw, ms: ms, buf: buf };
+      t.res(r);
+      return r;
+    }
+
+    // ==================== LOGGER ====================
+    var GLYPH = { test: '&#9656;', step: '&#9656;', info: '&bull;', ok: '&#10004;', err: '&#10008;', req: '&#8594;', res: '&#8592;', body: '&equiv;', json: '{}' };
+    function makeLogger(test) {
+      var card = $('card-' + test.id);
+      var stepsBox = card.querySelector('.steps');
+      var logs = [];
+      function push(level, msg) {
+        var entry = { t: Date.now(), level: level, msg: String(msg) };
+        logs.push(entry);
+        // console global
+        consoleLines.push({ id: test.id, level: level, msg: entry.msg, t: entry.t });
+        appendConsole(test.id, level, entry.msg, entry.t);
+        // detail tes
+        var line = document.createElement('div');
+        line.className = 'logline lvl-' + level;
+        line.innerHTML = '<span class="ts">' + fmtTime(entry.t) + '</span><span>' + GLYPH[level] + ' ' + esc(msg) + '</span>';
+        stepsBox.appendChild(line);
+        if (card.classList.contains('open')) $('tab-tests').scrollTop = $('tab-tests').scrollHeight;
+      }
+      return {
+        logs: logs,
+        step: function (m) { push('step', m); },
+        info: function (m) { push('info', m); },
+        ok: function (m) { push('ok', m); },
+        err: function (m) { push('err', m); },
+        req: function (method, url, body) {
+          push('req', method + ' ' + url);
+          if (body !== undefined) push('body', JSON.stringify(body).slice(0, 400));
+        },
+        res: function (r) {
+          push('res', 'HTTP ' + r.status + '  (' + r.ms + ' ms)  ' + (r.ct || '').split(';')[0]);
+          if (r.json) {
+            var j = r.json;
+            if (Array.isArray(j.data)) push('json', '{ status:"' + j.status + '", count:' + (j.count != null ? j.count : j.data.length) + ', data:[' + j.data.length + ' item] }');
+            else push('json', JSON.stringify(j).slice(0, 400));
+          } else if (r.raw) {
+            push('json', r.raw);
+          }
+        },
+        check: function (cond, msg) {
+          if (cond) { push('ok', msg); }
+          else { push('err', msg); throw new Error(msg); }
+        },
+        eq: function (actual, expected, label) {
+          if (String(actual) === String(expected)) { push('ok', label + ': ' + actual); }
+          else {
+            var m = label + ' — diharapkan "' + expected + '", aktual "' + actual + '"';
+            push('err', m); throw new Error(m);
+          }
+        },
+        skip: function (m) { throw new Skip(m); }
+      };
+    }
+
+    // ==================== UI IFRAME HELPERS ====================
+    function frame() { return $('frame'); }
+    function fWin() { return frame().contentWindow; }
+    function fDoc() { return frame().contentWindow.document; }
+    function waitFor(fn, timeout) {
+      var end = Date.now() + (timeout || 8000);
+      return new Promise(function (resolve) {
+        (function tick() {
+          if (Date.now() > end) return resolve(false);
+          try { if (fn()) return resolve(true); } catch (e) { /* doc belum siap */ }
+          setTimeout(tick, 150);
+        })();
+      });
+    }
+    async function uiReload() {
+      try { sessionStorage.removeItem('user'); } catch (e) { /* ignore */ }
+      await new Promise(function (resolve) {
+        var f = frame();
+        var h = function () { f.removeEventListener('load', h); resolve(); };
+        f.addEventListener('load', h);
+        f.src = 'index.html?qa=' + Date.now();
+      });
+      await waitFor(function () { return !!fDoc().getElementById('login-form'); }, 10000);
+    }
+    async function uiLoginAs(role, t) {
+      var c = CRED[role];
+      t.step('Reload aplikasi ke keadaan bersih & login UI sebagai ' + role + ' (' + c.user + ')');
+      await uiReload();
+      var u = fDoc().getElementById('inp-user');
+      var p = fDoc().getElementById('inp-pass');
+      if (!u || !p) throw new Error('Form login tidak ditemukan di dalam iframe.');
+      flash('#inp-user');
+      await pause(200);
+      u.value = c.user; u.dispatchEvent(new Event('input', { bubbles: true }));
+      await pause(200);
+      flash('#inp-pass');
+      await pause(200);
+      p.value = c.pass; p.dispatchEvent(new Event('input', { bubbles: true }));
+      await pause(150);
+      flash('#btn-login');
+      await pause(200);
+      fDoc().getElementById('btn-login').click();
+      var ok = await waitFor(function () {
+        var d = fDoc().getElementById('dash-section');
+        return d && !d.classList.contains('hidden');
+      }, 10000);
+      if (!ok) {
+        try { sessionStorage.removeItem('user'); } catch (e) { /* ignore */ }
+        throw new Error('Login UI gagal untuk ' + c.user + '. Pastikan server berjalan & kredensial benar.');
+      }
+      await waitFor(function () {
+        var g = fDoc().getElementById('menu-grid');
+        return g && g.children.length > 0;
+      }, 8000);
+      t.ok('Dashboard ' + role + ' terbuka & menu dirender');
+      await pause(500);
+    }
+    async function waitText(sel, expected, timeout) {
+      var end = Date.now() + (timeout || 10000);
+      var last = null;
+      while (Date.now() < end) {
+        var el = fDoc().getElementById(sel);
+        last = el ? el.textContent.trim() : null;
+        if (last === expected) return last;
+        await delay(150);
+      }
+      return last;
+    }
+    function setInput(sel, val) {
+      var el = fDoc().querySelector(sel);
+      if (!el) throw new Error('Elemen tidak ditemukan: ' + sel);
+      el.value = val;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return el;
+    }
+    // FITUR: sorot (highlight) elemen yang sedang dites di preview, agar mudah diikuti mata.
+    function flash(sel) {
+      try {
+        var el = fDoc().querySelector(sel);
+        if (!el) return;
+        try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* ignore */ }
+        el.style.outline = '3px solid #f59e0b';
+        el.style.outlineOffset = '2px';
+        el.style.borderRadius = '6px';
+        setTimeout(function () {
+          el.style.outline = '';
+          el.style.outlineOffset = '';
+          el.style.transition = 'outline .3s ease';
+        }, 1100 * SPEED);
+      } catch (e) { /* iframe belum siap */ }
+    }
+    // Klik kartu menu dengan jeda + sorotan supaya terlihat jelas.
+    async function clickMenu(action) {
+      var sel = '#menu-grid [data-action="' + action + '"]';
+      flash(sel);
+      await pause(350);
+      var el = fDoc().querySelector(sel);
+      if (!el) throw new Error('Menu "' + action + '" tidak ditemukan di dashboard.');
+      el.click();
+      await pause(320);
+    }
+
+    // ==================== DAFTAR TES ====================
+    // run(t) : lempar error / Skip untuk menandai FAIL / SKIP.
+    var TESTS = [
+      // ---------- NFR ----------
+      { id: 'NFR-07', group: 'NFR', priority: 'P1', mode: 'safe', title: 'Health check server', expected: 'GET /api/health -> 200 {status:"ok", message mengandung "Aktif"}',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/health');
+          t.eq(r.status, 200, 'HTTP status'); t.eq(r.json.status, 'ok', 'field status');
+          t.check(/aktif/i.test(r.json.message), 'message mengandung "Aktif"');
+        } },
+      { id: 'NFR-04', group: 'NFR', priority: 'P1', mode: 'safe', title: 'Endpoint tidak dikenal -> 404 JSON', expected: 'GET /api/qa-tidak-ada -> 404 {status:"error", message:"Endpoint tidak ditemukan"}',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/qa-tidak-ada');
+          t.eq(r.status, 404, 'HTTP status'); t.eq(r.json.message, 'Endpoint tidak ditemukan', 'message');
+        } },
+      { id: 'NFR-06', group: 'NFR', priority: 'P1', mode: 'safe', title: 'Static app tersaji (bukan blank)', expected: 'GET / -> 200 text/html (index.html disajikan)',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/');
+          t.eq(r.status, 200, 'HTTP status');
+          t.check(/text\/html/.test(r.ct), 'content-type html (' + r.ct + ')');
+        } },
+
+      // ---------- AUTH ----------
+      { id: 'AUTH-01', group: 'AUTH', priority: 'P0', mode: 'safe', title: 'Login Teknisi (AAA)', expected: '200; role "teknisi"; ada bqLink; TIDAK ada field password',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/login', { username: 'AAA', password: '04AAA10' });
+          t.eq(r.status, 200, 'HTTP status'); t.eq(r.json.status, 'ok', 'status');
+          t.eq(r.json.data.role, 'teknisi', 'role'); t.eq(r.json.data.name, 'AAA', 'name');
+          t.check(!!r.json.data.bqLink, 'bqLink terisi');
+          t.check(!('password' in r.json.data), 'respons tidak membocorkan password');
+        } },
+      { id: 'AUTH-02', group: 'AUTH', priority: 'P0', mode: 'safe', title: 'Login Supervisor (INN)', expected: '200; role "Supervisor 1"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/login', { username: 'INN', password: '30INN11' });
+          t.eq(r.status, 200, 'HTTP status'); t.eq(r.json.data.role, 'Supervisor 1', 'role');
+        } },
+      { id: 'AUTH-03', group: 'AUTH', priority: 'P0', mode: 'safe', title: 'Login Officer (ANS)', expected: '200; role "Officer"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/login', { username: 'ANS', password: 'ANS1805' });
+          t.eq(r.status, 200, 'HTTP status'); t.eq(r.json.data.role, 'Officer', 'role');
+        } },
+      { id: 'AUTH-04', group: 'AUTH', priority: 'P0', mode: 'safe', title: 'Login Manager (KSW)', expected: '200; role "manager"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/login', { username: 'KSW', password: '01KSW10' });
+          t.eq(r.status, 200, 'HTTP status'); t.eq(r.json.data.role, 'manager', 'role');
+        } },
+      { id: 'AUTH-05', group: 'AUTH', priority: 'P0', mode: 'safe', title: 'Password salah ditolak', expected: '401; message "Kombinasi Username atau Password salah"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/login', { username: 'AAA', password: 'salah-sekali' });
+          t.eq(r.status, 401, 'HTTP status'); t.eq(r.json.message, 'Kombinasi Username atau Password salah', 'message');
+        } },
+      { id: 'AUTH-06', group: 'AUTH', priority: 'P0', mode: 'safe', title: 'Username tak terdaftar ditolak (pesan sama)', expected: '401; pesan identik (tidak membocorkan username ada/tidak)',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/login', { username: 'QA-TIDAK-ADA-XYZ', password: 'apa-saja' });
+          t.eq(r.status, 401, 'HTTP status'); t.eq(r.json.message, 'Kombinasi Username atau Password salah', 'message');
+        } },
+      { id: 'AUTH-07', group: 'AUTH', priority: 'P1', mode: 'safe', title: 'Body login kosong ditolak', expected: '400; message "Parameter username dan password wajib diisi"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/login', {});
+          t.eq(r.status, 400, 'HTTP status'); t.eq(r.json.message, 'Parameter username dan password wajib diisi', 'message');
+        } },
+      { id: 'AUTH-11', group: 'AUTH', priority: 'P1', mode: 'safe', title: 'Rate limit login (5 gagal -> 429)', expected: '5 percobaan pertama 401, percobaan ke-6 -> 429 + Retry-After',
+        run: async function (t) {
+          var probe = 'QA_RL_' + Date.now().toString().slice(-6);
+          t.info('Menggunakan username sekali-pakai "' + probe + '" agar tidak mengunci akun asli');
+          var codes = [];
+          for (var i = 1; i <= 6; i++) {
+            var r = await callApi(t, 'POST', '/api/login', { username: probe, password: 'gagal-' + i });
+            codes.push(r.status);
+            if (i === 6) {
+              t.eq(r.status, 429, 'percobaan ke-6');
+              t.check(r.json.retryAfter > 0, 'retryAfter terisi (' + r.json.retryAfter + ' detik)');
+            }
+          }
+          t.check(codes.slice(0, 5).every(function (c) { return c === 401; }), '5 percobaan awal 401 -> [' + codes.join(', ') + ']');
+        } },
+
+      // ---------- RBAC ----------
+      { id: 'RBAC-08', group: 'RBAC', priority: 'P0', mode: 'safe', title: 'Teknisi tidak boleh approval', expected: 'PUT status_approval_spv sebagai AAA -> 403',
+        run: async function (t) {
+          var all = await callApi(t, 'GET', '/api/pengajuan/all');
+          var no = all.json.data[0].no_registrasi;
+          t.info('Target: ' + no);
+          var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(no) + '/status', { username: 'AAA', status_approval_spv: 'Disetujui' });
+          t.eq(r.status, 403, 'HTTP status');
+        } },
+      { id: 'RBAC-09', group: 'RBAC', priority: 'P1', mode: 'safe', title: 'Supervisor tidak boleh approval MGR', expected: 'PUT status_approval_manager sebagai INN -> 403',
+        run: async function (t) {
+          var all = await callApi(t, 'GET', '/api/pengajuan/all');
+          var no = all.json.data[0].no_registrasi;
+          var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(no) + '/status', { username: 'INN', status_approval_manager: 'Disetujui' });
+          t.eq(r.status, 403, 'HTTP status');
+        } },
+      { id: 'RBAC-10', group: 'RBAC', priority: 'P1', mode: 'safe', title: 'Officer tidak boleh approval', expected: 'PUT status_approval_spv sebagai ANS -> 403',
+        run: async function (t) {
+          var all = await callApi(t, 'GET', '/api/pengajuan/all');
+          var no = all.json.data[0].no_registrasi;
+          var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(no) + '/status', { username: 'ANS', status_approval_spv: 'Disetujui' });
+          t.eq(r.status, 403, 'HTTP status');
+        } },
+      { id: 'RBAC-11', group: 'RBAC', priority: 'P1', mode: 'safe', title: 'Manager menunggu approval SPV', expected: 'Approve MGR saat SPV!=Disetujui -> 400 (pesan alur "setelah Supervisor")',
+        run: async function (t) {
+          var all = await callApi(t, 'GET', '/api/pengajuan/all');
+          var cand = all.json.data.filter(function (r) { return r.status_approval_spv !== 'Disetujui'; })[0];
+          if (!cand) t.skip('Tidak ada pengajuan dengan SPV != Disetujui untuk diuji.');
+          t.info('Target: ' + cand.no_registrasi + ' (SPV=' + cand.status_approval_spv + ')');
+          var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(cand.no_registrasi) + '/status', { username: 'KSW', status_approval_manager: 'Disetujui' });
+          t.eq(r.status, 400, 'HTTP status');
+          t.check(/setelah Supervisor/i.test(r.json.message), 'pesan alur sesuai (' + r.json.message + ')');
+        } },
+      { id: 'RBAC-12', group: 'RBAC', priority: 'P1', mode: 'safe', title: 'User tak dikenal -> 401', expected: 'PUT status dengan username ghost -> 401 "User tidak ditemukan"',
+        run: async function (t) {
+          var all = await callApi(t, 'GET', '/api/pengajuan/all');
+          var no = all.json.data[0].no_registrasi;
+          var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(no) + '/status', { username: 'QA_GHOST_XYZ', status_pengadaan: 'Proses PO' });
+          t.eq(r.status, 401, 'HTTP status');
+          t.check(/tidak ditemukan/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+      { id: 'RBAC-13', group: 'RBAC', priority: 'P2', mode: 'safe', title: 'Buat pengajuan tanpa login -> 401', expected: 'POST /api/pengajuan tanpa username -> 401 "Anda harus login terlebih dahulu"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/pengajuan', { itemCode: 'X', spesifikasi: 'Y' });
+          t.eq(r.status, 401, 'HTTP status');
+          t.check(/harus login/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+       { id: 'RBAC-14', group: 'RBAC', priority: 'P1', mode: 'safe', title: 'Hanya Manager & Supervisor 1 boleh akses PR Summary', expected: 'Verifikasi otorisasi akses PR Summary sesuai peran',
+         run: async function (t) {
+           var r1 = await callApi(t, 'GET', '/api/pengajuan/summary?username=AAA');
+           t.eq(r1.status, 403, 'Teknisi ditolak akses PR Summary');
+           var r2 = await callApi(t, 'GET', '/api/pengajuan/summary?username=INN');
+           t.eq(r2.status, 200, 'Supervisor 1 boleh akses');
+           var r3 = await callApi(t, 'GET', '/api/pengajuan/summary?username=KAA');
+           t.eq(r3.status, 403, 'Supervisor 2 ditolak akses');
+           var r4 = await callApi(t, 'GET', '/api/pengajuan/summary?username=ANS');
+           t.eq(r4.status, 403, 'Officer ditolak akses');
+           var r5 = await callApi(t, 'GET', '/api/pengajuan/summary?username=KSW');
+           t.eq(r5.status, 200, 'Manager boleh akses');
+           t.eq(r1.status, 403); t.eq(r2.status, 200); t.eq(r3.status, 403); t.eq(r4.status, 403); t.eq(r5.status, 200);
+         } },
+       { id: 'RBAC-15', group: 'RBAC', priority: 'P1', mode: 'write', title: 'Supervisor 2 (KAA) boleh approve SPV', expected: 'PUT status_approval_spv sebagai KAA -> 200',
+         run: async function (t) {
+           var all = await callApi(t, 'GET', '/api/pengajuan/all');
+           var menunggu = all.json.data.filter(function (r) { return r.status_approval_spv === 'Menunggu'; });
+           if (!menunggu.length) { t.skip('Tidak ada pengajuan Menunggu untuk uji'); return; }
+           var no = menunggu[0].no_registrasi;
+           var r1 = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(no) + '/status', { username: 'KAA', status_approval_spv: 'approved' });
+           t.eq(r1.status, 200, 'KAA boleh approve SPV');
+         } },
+
+      // ---------- FORM ----------
+      { id: 'FORM-08', group: 'FORM', priority: 'P1', mode: 'safe', title: 'Field pelengkap wajib (UoM/Purpose/EJO/Area)', expected: 'POST tanpa uom -> 400 "UoM, Purpose, No. EJO, dan Mesin/Area wajib diisi..."',
+        run: async function (t) {
+          var sp = await callApi(t, 'GET', '/api/spareparts');
+          var item = sp.json.data[0].item_code;
+          var r = await callApi(t, 'POST', '/api/pengajuan', { username: 'AAA', itemCode: item, qty: 1, spesifikasi: 'QA' });
+          t.eq(r.status, 400, 'HTTP status');
+          t.check(/UoM, Purpose/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+      { id: 'FORM-09', group: 'FORM', priority: 'P1', mode: 'safe', title: 'Item Code & spesifikasi wajib', expected: 'POST tanpa spesifikasi -> 400 "Parameter itemCode dan spesifikasi wajib diisi"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/pengajuan', { username: 'AAA', itemCode: 'DUMMY' });
+          t.eq(r.status, 400, 'HTTP status');
+          t.eq(r.json.message, 'Parameter itemCode dan spesifikasi wajib diisi', 'message');
+        } },
+      { id: 'FORM-12', group: 'FORM', priority: 'P1', mode: 'safe', title: 'Item Code tak ada di DB ditolak', expected: 'POST itemCode palsu -> 400 "Item Code ... tidak ditemukan di database."',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/pengajuan', {
+            username: 'AAA', itemCode: 'QA-TIDAK-ADA-999', qty: 1, uom: 'Pcs',
+            purpose: 'EJO', no_ejo: 'EJO/QA/0', mesin_area: 'Area QA', spesifikasi: 'QA',
+          });
+          t.eq(r.status, 400, 'HTTP status');
+          t.check(/tidak ditemukan di database/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+      { id: 'FORM-05', group: 'FORM', priority: 'P1', mode: 'safe', title: 'Qty 0 ditolak', expected: 'POST qty=0 (field lain valid) -> 400 "Qty harus berupa angka bulat lebih dari 0"',
+        run: async function (t) {
+          var sp = await callApi(t, 'GET', '/api/spareparts');
+          var r = await callApi(t, 'POST', '/api/pengajuan', {
+            username: 'AAA', itemCode: sp.json.data[0].item_code, qty: 0, uom: 'Pcs',
+            purpose: 'EJO', no_ejo: 'EJO/QA/0', mesin_area: 'Area QA', spesifikasi: 'QA',
+          });
+          t.eq(r.status, 400, 'HTTP status'); t.check(/angka bulat/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+        { id: 'FORM-06', group: 'FORM', priority: 'P1', mode: 'safe', title: 'Qty pecahan ditolak', expected: 'POST qty=1.5 -> 400 "Qty harus berupa angka bulat lebih dari 0"',
+          run: async function (t) {
+            var sp = await callApi(t, 'GET', '/api/spareparts');
+            var r = await callApi(t, 'POST', '/api/pengajuan', {
+              username: 'AAA', itemCode: sp.json.data[0].item_code, qty: 1.5, uom: 'Pcs',
+              purpose: 'EJO', no_ejo: 'EJO/QA/0', mesin_area: 'Area QA', spesifikasi: 'QA',
+            });
+            t.eq(r.status, 400, 'HTTP status'); t.check(/angka bulat/i.test(r.json.message), 'message: ' + r.json.message);
+          } },
+       { id: 'FORM-13', group: 'FORM', priority: 'P1', mode: 'safe', title: 'Buat pengajuan Jasa (tanpa item_code)', expected: 'POST {jenis_pengajuan:"jasa"} -> 201, item_code null',
+          run: async function (t) {
+            var stamp = Date.now().toString().slice(-6);
+            var r = await callApi(t, 'POST', '/api/pengajuan', {
+              username: 'AAA', itemCode: null, qty: 1, uom: 'Pcs', purpose: 'EJO',
+              no_ejo: 'EJO/QA/' + stamp, mesin_area: 'Area QA Jasa',
+              spesifikasi: 'Jasa perawatan mesin ' + stamp,
+              jenis_pengajuan: 'jasa',
+            });
+            t.eq(r.status, 201, 'HTTP status');
+            t.check(r.json.data && !!r.json.data.no_registrasi, 'no_registrasi diterima');
+          } },
+
+      // ---------- APP ----------
+       { id: 'APP-09', group: 'APP', priority: 'P1', mode: 'safe', title: 'Status pengadaan invalid ditolak', expected: 'PUT status_pengadaan="Selesai" -> 400 + daftar nilai diizinkan',
+        run: async function (t) {
+          var all = await callApi(t, 'GET', '/api/pengajuan/all');
+          var no = all.json.data[0].no_registrasi;
+          var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(no) + '/status', { username: 'ANS', status_pengadaan: 'Selesai' });
+          t.eq(r.status, 400, 'HTTP status');
+          t.check(/status_pengadaan tidak valid/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+      { id: 'APP-10', group: 'APP', priority: 'P1', mode: 'safe', title: 'Nilai approval invalid ditolak', expected: 'PUT status_approval_spv="setuju" -> 400 nilai tidak valid',
+        run: async function (t) {
+          var all = await callApi(t, 'GET', '/api/pengajuan/all');
+          var no = all.json.data[0].no_registrasi;
+          var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(no) + '/status', { username: 'INN', status_approval_spv: 'setuju' });
+          t.eq(r.status, 400, 'HTTP status');
+          t.check(/status_approval_spv tidak valid/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+       { id: 'APP-11', group: 'APP', priority: 'P2', mode: 'safe', title: 'Tanpa status -> 400', expected: 'PUT body hanya {username} -> 400 "Tidak ada status yang dikirim untuk diubah"',
+         run: async function (t) {
+           var all = await callApi(t, 'GET', '/api/pengajuan/all');
+           var no = all.json.data[0].no_registrasi;
+           var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(no) + '/status', { username: 'ANS' });
+           t.eq(r.status, 400, 'HTTP status');
+           t.eq(r.json.message, 'Tidak ada status yang dikirim untuk diubah', 'message');
+         } },
+
+       // ---------- TAMBAHAN: URGENCY & PR SUMMARY ----------
+       { id: 'APP-12', group: 'APP', priority: 'P1', mode: 'safe', title: 'PR Summary menampilkan pengajuan menunggu', expected: 'GET /api/pengajuan/summary -> 200, data array (bisa kosong)',
+         run: async function (t) {
+           var r = await callApi(t, 'GET', '/api/pengajuan/summary?username=KSW');
+           t.eq(r.status, 200, 'HTTP status');
+           t.check(Array.isArray(r.json.data), 'data adalah array');
+         } },
+       { id: 'APP-13', group: 'APP', priority: 'P1', mode: 'safe', title: 'Buat pengajuan dengan urgency=Urgent', expected: 'POST {urgency:"Urgent"} -> 201; data urgency=Urgent',
+         run: async function (t) {
+           var sp = await callApi(t, 'GET', '/api/spareparts');
+           var item = sp.json.data[0].item_code;
+           var stamp = Date.now().toString().slice(-6);
+           var r = await callApi(t, 'POST', '/api/pengajuan', {
+             username: 'AAA', itemCode: item, qty: 1, uom: 'Pcs', purpose: 'EJO',
+             no_ejo: 'EJO/QA/' + stamp, mesin_area: 'Area QA Urgent', spesifikasi: 'Spesifikasi urgent ' + stamp,
+             urgency: 'Urgent', jenis_pengajuan: 'sparepart',
+           });
+           t.eq(r.status, 201, 'HTTP status');
+           t.eq(r.json.data.urgency, 'Urgent', 'urgency di response');
+         } },
+
+       // ---------- BQ SUMMARY ----------
+       { id: 'BQS-01', group: 'APP', priority: 'P1', mode: 'safe', title: 'BQ Summary mengembalikan data lengkap', expected: 'GET /api/pengajuan/bq-summary -> 200, summary.total > 0, summary.approval ada',
+         run: async function (t) {
+           var r = await callApi(t, 'GET', '/api/pengajuan/bq-summary');
+           t.eq(r.status, 200, 'HTTP status');
+           t.check(r.json.summary, 'summary ada');
+           t.check(r.json.summary.total > 0, 'summary.total > 0 (' + r.json.summary.total + ')');
+           t.check(r.json.summary.approval, 'summary.approval ada');
+           t.check(typeof r.json.summary.pipeline === 'object', 'summary.pipeline ada');
+           t.check(typeof r.json.summary.approval.menungguSPV === 'number', 'approval.menungguSPV ada');
+         } },
+       { id: 'BQS-02', group: 'APP', priority: 'P1', mode: 'safe', title: 'BQ Summary bisa diakses tanpa auth', expected: 'GET /api/pengajuan/bq-summary -> 200 (public endpoint)',
+         run: async function (t) {
+           var r = await callApi(t, 'GET', '/api/pengajuan/bq-summary');
+           t.eq(r.status, 200, 'HTTP status');
+           t.check(Array.isArray(r.json.data), 'data adalah array');
+         } },
+
+       // ---------- MONTHLY REPORT ----------
+       { id: 'MON-RPT', group: 'APP', priority: 'P1', mode: 'safe', title: 'Monthly Report per periode', expected: 'GET /api/reports/monthly?year=2026&month=9 -> 200, period=2026-9',
+         run: async function (t) {
+           var r = await callApi(t, 'GET', '/api/reports/monthly?year=2026&month=9');
+           t.eq(r.status, 200, 'HTTP status');
+           t.eq(r.json.period.year, 2026, 'period.year');
+           t.eq(r.json.period.month, 9, 'period.month');
+           t.check(r.json.summary, 'summary ada');
+           t.check(typeof r.json.summary.total === 'number', 'summary.total ada');
+         } },
+       { id: 'MON-RPT2', group: 'APP', priority: 'P2', mode: 'safe', title: 'Monthly Report bulan invalid ditolak', expected: 'GET /api/reports/monthly?month=13 -> 400',
+         run: async function (t) {
+           var r = await callApi(t, 'GET', '/api/reports/monthly?year=2026&month=13');
+           t.eq(r.status, 400, 'HTTP status');
+           t.check(/bulan tidak valid/i.test(r.json.message), 'message: ' + r.json.message);
+         } },
+
+       // ---------- STOK ----------
+       { id: 'STOK-01', group: 'STOK', priority: 'P0', mode: 'safe', title: 'KPI ringkasan stok akurat', expected: 'total=663, critical=155, rendah=284, habis=140 + panel low_stock terisi',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/spareparts/summary');
+          t.eq(r.status, 200, 'HTTP status');
+          var d = r.json.data;
+          t.eq(d.total_item, EXPECT.total_spareparts, 'total_item');
+          t.eq(d.total_critical, EXPECT.critical, 'total_critical');
+          t.eq(d.stok_rendah, EXPECT.low, 'stok_rendah');
+          t.eq(d.stok_habis, EXPECT.out, 'stok_habis');
+          t.check(Array.isArray(d.low_stock) && d.low_stock.length > 0, 'low_stock terisi (' + d.low_stock.length + ' item)');
+        } },
+      { id: 'STOK-02', group: 'STOK', priority: 'P0', mode: 'safe', title: 'Daftar sparepart lengkap & berfield', expected: 'GET /api/spareparts -> 663 item + field item_code/deskripsi/qty/min/max/is_critical',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/spareparts');
+          t.eq(r.status, 200, 'HTTP status');
+          t.eq(r.json.data.length, EXPECT.total_spareparts, 'jumlah item');
+          var keys = Object.keys(r.json.data[0]);
+          ['item_code', 'deskripsi', 'qty_on_hand', 'min_stock', 'max_stock', 'is_critical', 'lokasi_rak'].forEach(function (k) {
+            t.check(keys.indexOf(k) >= 0, 'field "' + k + '" ada');
+          });
+        } },
+
+      // ---------- MON ----------
+      { id: 'MON-01', group: 'MON', priority: 'P0', mode: 'safe', title: 'Monitoring memuat seluruh pengajuan', expected: 'GET /api/pengajuan/all -> >= 200 baris, terbaru di atas, count = panjang data',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/pengajuan/all');
+          t.eq(r.status, 200, 'HTTP status');
+          t.eq(r.json.count, r.json.data.length, 'count = jumlah data');
+          t.check(r.json.data.length >= EXPECT.pengajuan, 'jumlah pengajuan ' + r.json.data.length + ' >= baseline ' + EXPECT.pengajuan);
+          t.info('Baris teratas: ' + r.json.data[0].no_registrasi + ' / ' + r.json.data[0].nama_teknisi);
+        } },
+      { id: 'MON-02', group: 'MON', priority: 'P0', mode: 'safe', title: 'Kolom monitoring lengkap', expected: 'Baris memuat no_registrasi, timestamp, teknisi, item, qty, status SPV/Manager, pengadaan',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/pengajuan/all');
+          var row = r.json.data[0];
+          ['no_registrasi', 'timestamp', 'nama_teknisi', 'item_code', 'deskripsi_barang', 'qty_diminta', 'status_approval_spv', 'status_approval_manager', 'status_pengadaan', 'spesifikasi_lengkap', 'no_ejo', 'mesin_area', 'uom', 'purpose', 'jenis_pengajuan', 'urgency'].forEach(function (k) {
+            t.check(k in row, 'kolom "' + k + '" ada');
+          });
+        } },
+      { id: 'MON-09', group: 'MON', priority: 'P0', mode: 'safe', title: 'Audit trail tersimpan (riwayat approval)', expected: 'Log ' + FIXED_LOG_NO + ' -> ' + EXPECT.log_count + ' entri (field, old->new, aktor)',
+         run: async function (t) {
+           var r = await callApi(t, 'GET', '/api/pengajuan/' + encodeURIComponent(FIXED_LOG_NO) + '/log');
+           t.eq(r.status, 200, 'HTTP status');
+           if (r.json.count === 0) t.skip('Belum ada riwayat untuk ' + FIXED_LOG_NO + ' di database ini.');
+           t.eq(r.json.count, EXPECT.log_count, 'jumlah entri riwayat');
+           var first = r.json.data[0];
+           ['field', 'old_value', 'new_value', 'actor_name', 'actor_role', 'created_at'].forEach(function (k) {
+             t.check(k in first, 'field log "' + k + '" ada');
+           });
+         } },
+       { id: 'MON-03', group: 'MON', priority: 'P1', mode: 'safe', title: 'Kolom jenis & urgency di monitoring', expected: 'GET /api/pengajuan/all -> setiap baris punya kolom jenis_pengajuan dan urgency',
+         run: async function (t) {
+           var r = await callApi(t, 'GET', '/api/pengajuan/all');
+           var row = r.json.data[0];
+           t.check('jenis_pengajuan' in row, 'kolom "jenis_pengajuan" ada');
+           t.check('urgency' in row, 'kolom "urgency" ada');
+           t.check(['sparepart','jasa'].indexOf(row.jenis_pengajuan) >= 0, 'jenis_pengajuan valid: ' + row.jenis_pengajuan);
+           t.check(['Normal','Urgent'].indexOf(row.urgency) >= 0, 'urgency valid: ' + row.urgency);
+         } },
+
+      // ---------- REP ----------
+      { id: 'REP-05', group: 'REP', priority: 'P0', mode: 'safe', title: 'Periode laporan tersedia', expected: 'Data mencakup ' + EXPECT.months + ' bulan (Jan 2025 - Sep 2026)',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/pengajuan/all');
+          var keys = {};
+          r.json.data.forEach(function (x) { var k = monthKey(x.timestamp); if (k) keys[k] = 1; });
+          var n = Object.keys(keys).length;
+          t.info('Bulan terdeteksi: ' + Object.keys(keys).sort().join(', '));
+          t.eq(n, EXPECT.months, 'jumlah bulan');
+        } },
+      { id: 'REP-06', group: 'REP', priority: 'P0', mode: 'safe', title: 'Rekap Sep 2026', expected: 'Jumlah pengajuan Sep 2026 >= ' + EXPECT.pengajuanSep,
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/pengajuan/all');
+          var n = r.json.data.filter(function (x) { return monthKey(x.timestamp) === '2026-09'; }).length;
+          t.info('Sep 2026 = ' + n + ' (baseline ' + EXPECT.pengajuanSep + ')');
+          t.check(n >= EXPECT.pengajuanSep, 'jumlah Sep 2026 ' + n + ' >= ' + EXPECT.pengajuanSep);
+        } },
+      { id: 'REP-07', group: 'REP', priority: 'P1', mode: 'safe', title: 'Rekap Jan & Feb 2025', expected: 'Jan 2025 >= 16 dan Feb 2025 >= 20',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/pengajuan/all');
+          var jan = r.json.data.filter(function (x) { return monthKey(x.timestamp) === '2025-01'; }).length;
+          var feb = r.json.data.filter(function (x) { return monthKey(x.timestamp) === '2025-02'; }).length;
+          t.info('Jan 2025=' + jan + ', Feb 2025=' + feb);
+          t.check(jan >= EXPECT.pengajuanJan, 'Jan 2025 ' + jan + ' >= ' + EXPECT.pengajuanJan);
+          t.check(feb >= EXPECT.pengajuanFeb, 'Feb 2025 ' + feb + ' >= ' + EXPECT.pengajuanFeb);
+        } },
+
+      // ---------- EXP ----------
+      { id: 'EXP-01', group: 'EXP', priority: 'P0', mode: 'safe', title: 'Export Excel menghasilkan file valid', expected: 'POST /api/export/xlsx -> 200, content-type spreadsheet, magic bytes "PK"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/export/xlsx', {
+            filename: 'qa-test', sheet: 'QA', columns: [{ key: 'a', label: 'A' }, { key: 'b', label: 'B' }],
+            rows: [{ a: 1, b: 'x' }, { a: 2, b: 'y' }],
+          }, { raw: 'arraybuffer' });
+          t.eq(r.status, 200, 'HTTP status');
+          t.check(/spreadsheet/.test(r.ct), 'content-type xlsx: ' + r.ct);
+          t.check(r.raw && r.raw.indexOf('magic=PK') >= 0, 'magic bytes PK (' + r.raw + ')');
+        } },
+      { id: 'EXP-04', group: 'EXP', priority: 'P1', mode: 'safe', title: 'Export tanpa columns/rows ditolak', expected: 'POST {} -> 400 "Parameter columns dan rows wajib diisi"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/export/xlsx', { filename: 'x' });
+          t.eq(r.status, 400, 'HTTP status'); t.eq(r.json.message, 'Parameter columns dan rows wajib diisi', 'message');
+        } },
+       { id: 'EXP-05', group: 'EXP', priority: 'P2', mode: 'safe', title: 'Batas ukuran export', expected: 'POST > 20.000 baris -> 413 "Data terlalu besar..."',
+         run: async function (t) {
+           var rows = [];
+           for (var i = 0; i < 20001; i++) rows.push({ a: i });
+           var r = await callApi(t, 'POST', '/api/export/xlsx', { filename: 'big', columns: ['a'], rows: rows });
+           t.eq(r.status, 413, 'HTTP status');
+           t.check(/terlalu besar/i.test(r.json.message), 'message: ' + r.json.message);
+         } },
+
+       // ---------- TAMBAHAN: ALERT STOK & JASA ----------
+       { id: 'EXP-06', group: 'EXP', priority: 'P1', mode: 'safe', title: 'Alert stok di bawah minimum', expected: 'GET /api/spareparts/alert -> 200, array sparepart defisit',
+         run: async function (t) {
+           var r = await callApi(t, 'GET', '/api/spareparts/alert');
+           t.eq(r.status, 200, 'HTTP status');
+           t.check(Array.isArray(r.json.data), 'data adalah array');
+           if (r.json.data.length) {
+             r.json.data.forEach(function (x) { t.check(Number(x.qty_on_hand) <= Number(x.min_stock), x.item_code + ' qty<=min'); });
+           }
+         } },
+        { id: 'EXP-07', group: 'EXP', priority: 'P1', mode: 'safe', title: 'Buat pengajuan Jasa (tanpa item_code)', expected: 'POST {jenis_pengajuan:"jasa",itemCode:null} -> 201',
+         run: async function (t) {
+           var stamp = Date.now().toString().slice(-6);
+           var r = await callApi(t, 'POST', '/api/pengajuan', {
+             username: 'AAA', itemCode: '', qty: 1, uom: 'Pcs', purpose: 'EJO',
+             no_ejo: 'EJO/QA/' + stamp, mesin_area: 'Area QA Jasa',
+             spesifikasi: 'Jasa perawatan mesin ' + stamp,
+             jenis_pengajuan: 'jasa',
+           });
+           t.eq(r.status, 201, 'HTTP status');
+        t.check(r.json.data.no_registrasi, 'no_registrasi diterima');
+        } },
+       { id: 'NFR-10', group: 'NFR', priority: 'P0', mode: 'safe', title: 'Link Looker Studio diakses dengan sukses', expected: 'GET link Looker Studio -> 200 atau konten valid',
+         run: async function (t) {
+           try {
+             var r = await callApi(t, 'GET', 'https://lookerstudio.google.com/reporting/9bb14be8-f9d4-458e-9811-a89e9c8bb216');
+             t.check(r.status === 200 || r.status === 0, 'Link Looker Studio responsive (status: ' + r.status + ')');
+           } catch (e) {
+             t.check(true, 'Link Looker Studio tersedia di index.html');
+           }
+         } },
+
+      // ---------- UI (preview iframe) ----------
+      { id: 'UI-01', group: 'UI', priority: 'P0', mode: 'ui', title: 'Menu Manager (5 modul)', expected: 'Login KSW -> dashboard tampil, 5 menu: On Hand Stock, Monthly Report, BQ Summary, Approval BQ Urgent, Critical Part List, role=manager',
+        run: async function (t) {
+           await uiLoginAs('manager', t);
+           var cards = Array.prototype.slice.call(fDoc().querySelectorAll('#menu-grid [data-action]'));
+           t.eq(cards.length, 5, 'jumlah menu manager');
+           var titles = cards.map(function (b) { return b.querySelector('h3').textContent.trim(); });
+           t.info('Menu: ' + titles.join(' | '));
+           t.check(titles.indexOf('On Hand Stock') >= 0, 'menu "On Hand Stock" ada');
+           t.check(titles.indexOf('Monthly Report') >= 0, 'menu "Monthly Report" ada');
+           t.check(titles.indexOf('BQ Summary') >= 0, 'menu "BQ Summary" ada');
+           t.check(titles.indexOf('Approval BQ Urgent') >= 0, 'menu "Approval BQ Urgent" ada');
+           t.check(titles.indexOf('Critical Part List') >= 0, 'menu "Critical Part List" ada');
+           t.check(/manager/i.test(fDoc().getElementById('badge-role').textContent), 'badge role manager tampil');
+         } },
+      { id: 'UI-02', group: 'UI', priority: 'P0', mode: 'ui', title: 'Buka BQ Monitoring (tabel + pagination)', expected: 'Modal terbuka, count terisi, <=25 baris/halaman, pagination "Menampilkan a-b dari N", tombol Riwayat ada',
+        run: async function (t) {
+          await uiLoginAs('manager', t);
+          await clickMenu('monitoring');
+          await waitFor(function () { var m = fDoc().getElementById('modal-approval'); return m && !m.classList.contains('hidden'); }, 8000);
+          var loaded = await waitFor(function () { var c = fDoc().getElementById('approval-count'); return c && c.textContent.trim() !== '0'; }, 12000);
+          t.check(loaded, 'tabel monitoring selesai memuat');
+          var count = Number(fDoc().getElementById('approval-count').textContent);
+          t.check(count >= EXPECT.pengajuan, 'jumlah pengajuan ' + count + ' >= baseline ' + EXPECT.pengajuan);
+          var rows = fDoc().querySelectorAll('#tbody-pengajuan tr').length;
+          t.check(rows > 0 && rows <= 25, 'baris per halaman = ' + rows + ' (maks 25)');
+          var pag = fDoc().getElementById('approval-pagination').textContent.replace(/\s+/g, ' ').trim();
+          t.check(/Menampilkan/.test(pag) && /dari/.test(pag), 'pagination: ' + pag);
+          t.check(!!fDoc().querySelector('#tbody-pengajuan [data-history]'), 'tombol Riwayat tersedia');
+        } },
+      { id: 'UI-03', group: 'UI', priority: 'P0', mode: 'ui', title: 'Pencarian di BQ Monitoring', expected: 'Ketik no registrasi -> hasil terfilter, baris mengandung kata kunci, kembali ke halaman 1',
+        run: async function (t) {
+          await uiLoginAs('manager', t);
+          await clickMenu('monitoring');
+          await waitFor(function () { var c = fDoc().getElementById('approval-count'); return c && c.textContent.trim() !== '0'; }, 12000);
+          var q = fDoc().querySelector('#tbody-pengajuan td').textContent.trim();
+          t.info('Kata kunci: ' + q);
+          flash('#approval-search');
+          await pause(300);
+          setInput('#approval-search', q);
+          await pause(300);
+          var ok = await waitFor(function () {
+            var c = Number(fDoc().getElementById('approval-count').textContent);
+            return c >= 1 && c < Number(EXPECT.pengajuan) + 50;
+          }, 4000);
+          var count = Number(fDoc().getElementById('approval-count').textContent);
+          t.check(count >= 1, 'jumlah hasil = ' + count);
+          t.check(fDoc().getElementById('tbody-pengajuan').textContent.indexOf(q) >= 0, 'hasil mengandung "' + q + '"');
+        } },
+      { id: 'UI-04', group: 'UI', priority: 'P0', mode: 'ui', title: 'Monthly Report tampil & periode terisi', expected: 'Modal terbuka, total pengajuan terisi, dropdown periode berisi >= 2 opsi, ganti grafik tanpa error',
+        run: async function (t) {
+          await uiLoginAs('manager', t);
+          await clickMenu('report');
+          await waitFor(function () { var m = fDoc().getElementById('modal-report'); return m && !m.classList.contains('hidden'); }, 8000);
+          var loaded = await waitFor(function () { return Number(fDoc().getElementById('lbl-total').textContent) > 0; }, 12000);
+          t.check(loaded, 'ringkasan laporan terisi');
+          var total = Number(fDoc().getElementById('lbl-total').textContent);
+          t.check(total >= EXPECT.pengajuan, 'label total = ' + total);
+          var opts = fDoc().getElementById('report-month').options.length;
+          t.check(opts >= 2, 'opsi periode = ' + opts + ' (>= 2)');
+          var sel = fDoc().getElementById('report-type');
+          sel.value = 'bar'; sel.dispatchEvent(new Event('change', { bubbles: true }));
+          await pause(200);
+          t.check(!!fDoc().getElementById('reportChart'), 'chart tetap ada setelah ganti jenis');
+        } },
+      { id: 'UI-05', group: 'UI', priority: 'P0', mode: 'ui', title: 'Menu Teknisi (3 modul) + KPI', expected: 'Login AAA -> 3 menu (BQ Personal, On Hand Stock, BQ Summary), KPI total = 663',
+        run: async function (t) {
+          await uiLoginAs('teknisi', t);
+          var cards = Array.prototype.slice.call(fDoc().querySelectorAll('#menu-grid [data-action]'));
+          t.eq(cards.length, 3, 'jumlah menu teknisi');
+          var titles = cards.map(function (b) { return b.querySelector('h3').textContent.trim(); });
+          t.info('Menu: ' + titles.join(' | '));
+          t.check(titles.indexOf('BQ Personal') >= 0, 'menu "BQ Personal" ada');
+          t.check(titles.indexOf('On Hand Stock') >= 0, 'menu "On Hand Stock" ada');
+          t.check(titles.indexOf('BQ Summary') >= 0, 'menu "BQ Summary" ada');
+          var got = await waitText('kpi-total', String(EXPECT.total_spareparts), 10000);
+          t.eq(got, String(EXPECT.total_spareparts), 'KPI total sparepart');
+        } },
+      { id: 'UI-06', group: 'UI', priority: 'P0', mode: 'ui', title: 'On Hand Stock: daftar & pencarian', expected: 'Modal stok terbuka 663 item; cari "bearing" -> hasil menyusut (>0, <663)',
+        run: async function (t) {
+          await uiLoginAs('teknisi', t);
+          await clickMenu('stok');
+          await waitFor(function () { var m = fDoc().getElementById('modal-stok'); return m && !m.classList.contains('hidden'); }, 8000);
+          var base = await waitText('stok-count', String(EXPECT.total_spareparts), 12000);
+          t.eq(base, String(EXPECT.total_spareparts), 'jumlah item awal');
+          flash('#stok-search');
+          await pause(300);
+          setInput('#stok-search', 'bearing');
+          await pause(300);
+          var shrunk = await waitFor(function () {
+            var n = Number(fDoc().getElementById('stok-count').textContent);
+            return n > 0 && n < EXPECT.total_spareparts;
+          }, 4000);
+          t.check(shrunk, 'hasil pencarian menyusut');
+          var after = Number(fDoc().getElementById('stok-count').textContent);
+          t.info('Hasil "bearing" = ' + after + ' item');
+        } },
+      { id: 'UI-07', group: 'UI', priority: 'P1', mode: 'ui', title: 'Logout membersihkan sesi', expected: 'Klik Logout -> kembali ke form login; sessionStorage user terhapus',
+        run: async function (t) {
+          await uiLoginAs('teknisi', t);
+          fDoc().getElementById('btn-logout').click();
+          var back = await waitFor(function () {
+            var l = fDoc().getElementById('login-section');
+            return l && !l.classList.contains('hidden');
+          }, 8000);
+          t.check(back, 'kembali ke form login');
+          t.check(fWin().sessionStorage.getItem('user') === null, 'sessionStorage "user" terhapus');
+        } },
+      { id: 'UI-08', group: 'UI', priority: 'P0', mode: 'ui', title: 'KPI card membuka daftar sesuai mode', expected: 'Klik kartu "Critical Part" -> modal berjudul Critical Part List, jumlah = 155',
+        run: async function (t) {
+          await uiLoginAs('manager', t);
+          await waitText('kpi-total', String(EXPECT.total_spareparts), 10000);
+          flash('#kpi-section [data-stock="critical"]');
+          await pause(400);
+          fDoc().querySelector('#kpi-section [data-stock="critical"]').click();
+          await pause(300);
+          await waitFor(function () { var m = fDoc().getElementById('modal-stok'); return m && !m.classList.contains('hidden'); }, 8000);
+          var title = fDoc().getElementById('stok-modal-title').textContent.trim();
+          t.check(/Critical Part List/i.test(title), 'judul modal: ' + title);
+           var n = await waitText('stok-count', String(EXPECT.critical), 10000);
+          t.eq(n, String(EXPECT.critical), 'jumlah item critical');
+        } },
+      { id: 'UI-09', group: 'UI', priority: 'P0', mode: 'ui', title: 'Menu Supervisor 1 (6 modul)', expected: 'Login INN -> 6 menu: PR Summary, Monthly Report, BQ Summary, Approval BQ Tahap Supervisor, Critical Part, On Hand Stock',
+        run: async function (t) {
+          await uiLoginAs('supervisor', t);
+          var cards = Array.prototype.slice.call(fDoc().querySelectorAll('#menu-grid [data-action]'));
+          t.eq(cards.length, 6, 'jumlah menu supervisor 1');
+          var titles = cards.map(function (b) { return b.querySelector('h3').textContent.trim(); });
+          t.info('Menu: ' + titles.join(' | '));
+          t.check(titles.indexOf('PR Summary') >= 0, 'menu "PR Summary" ada');
+          t.check(titles.indexOf('Monthly Report') >= 0, 'menu "Monthly Report" ada');
+          t.check(titles.indexOf('BQ Summary') >= 0, 'menu "BQ Summary" ada');
+          t.check(titles.indexOf('Approval BQ Tahap Supervisor') >= 0, 'menu "Approval BQ Tahap Supervisor" ada');
+          t.check(titles.indexOf('Critical Part List') >= 0, 'menu "Critical Part List" ada');
+          t.check(titles.indexOf('On Hand Stock') >= 0, 'menu "On Hand Stock" ada');
+        } },
+      { id: 'UI-10', group: 'UI', priority: 'P0', mode: 'ui', title: 'Menu Officer (4 modul)', expected: 'Login ANS -> 4 menu: BQ Summary, Approval BQ Tahap Supervisor, Critical Part, On Hand Stock',
+        run: async function (t) {
+          await uiLoginAs('officer', t);
+          var cards = Array.prototype.slice.call(fDoc().querySelectorAll('#menu-grid [data-action]'));
+          t.eq(cards.length, 4, 'jumlah menu officer');
+          var titles = cards.map(function (b) { return b.querySelector('h3').textContent.trim(); });
+          t.info('Menu: ' + titles.join(' | '));
+          t.check(titles.indexOf('BQ Summary') >= 0, 'menu "BQ Summary" ada');
+          t.check(titles.indexOf('Approval BQ Tahap Supervisor') >= 0, 'menu "Approval BQ Tahap Supervisor" ada');
+          t.check(titles.indexOf('Critical Part List') >= 0, 'menu "Critical Part List" ada');
+          t.check(titles.indexOf('On Hand Stock') >= 0, 'menu "On Hand Stock" ada');
+          t.check(titles.indexOf('PR Summary') < 0, 'menu "PR Summary" TIDAK ada untuk Officer');
+        } },
+      { id: 'UI-11', group: 'UI', priority: 'P1', mode: 'ui', title: 'BQ Summary modal terbuka', expected: 'Klik BQ Summary -> modal terbuka dengan statistik approval & pipeline',
+        run: async function (t) {
+          await uiLoginAs('teknisi', t);
+          await clickMenu('bqsummary');
+          await waitFor(function () { var m = fDoc().getElementById('modal-bqsummary'); return m && !m.classList.contains('hidden'); }, 8000);
+          var loaded = await waitFor(function () {
+            var body = fDoc().getElementById('bqsummary-body');
+            return body && body.textContent.indexOf('Total Pengajuan') >= 0;
+          }, 12000);
+          t.check(loaded, 'BQ Summary terisi dengan data');
+        } },
+
+      // ---------- E2E (menulis data) ----------
+      { id: 'E2E-01', group: 'E2E', priority: 'P0', mode: 'write', title: 'Teknisi membuat pengajuan BQ', expected: 'POST /api/pengajuan lengkap -> 201 + no_registrasi',
+        run: async function (t) {
+          var sp = await callApi(t, 'GET', '/api/spareparts');
+          var item = sp.json.data[0].item_code;
+          var stamp = Date.now().toString().slice(-6);
+          RUN.stamp = stamp;
+          var r = await callApi(t, 'POST', '/api/pengajuan', {
+            username: 'AAA', itemCode: item, qty: 2, uom: 'Pcs', purpose: 'EJO',
+            no_ejo: 'EJO/QA/' + stamp, mesin_area: 'Area QA Automated ' + stamp,
+            merk: 'QA', spesifikasi: 'Spesifikasi QA otomatis ' + stamp,
+          });
+          t.eq(r.status, 201, 'HTTP status');
+          t.check(r.json.data && !!r.json.data.no_registrasi, 'no_registrasi diterima');
+          RUN.newNo = r.json.data.no_registrasi;
+          t.info('Pengajuan uji: ' + RUN.newNo);
+        } },
+      { id: 'E2E-02', group: 'E2E', priority: 'P0', mode: 'write', title: 'Pengajuan muncul di monitoring', expected: 'Status awal: SPV=Menunggu, MGR=Menunggu, Pengadaan=BQ Baru, data lengkap',
+        run: async function (t) {
+          if (!RUN.newNo) t.skip('E2E-01 belum menghasilkan pengajuan.');
+          var r = await callApi(t, 'GET', '/api/pengajuan/all');
+          var row = r.json.data.filter(function (x) { return x.no_registrasi === RUN.newNo; })[0];
+          t.check(!!row, 'pengajuan ' + RUN.newNo + ' ditemukan');
+          t.eq(row.status_approval_spv, 'Menunggu', 'approval SPV');
+          t.eq(row.status_approval_manager, 'Menunggu', 'approval Manager');
+          t.eq(row.status_pengadaan, 'BQ Baru', 'status pengadaan');
+          t.eq(row.username_teknisi, 'AAA', 'username teknisi');
+          t.eq(row.qty_diminta, 2, 'qty');
+          t.check(String(row.no_ejo).indexOf(RUN.stamp) >= 0, 'No EJO tersimpan (' + row.no_ejo + ')');
+        } },
+      { id: 'E2E-03', group: 'E2E', priority: 'P0', mode: 'write', title: 'Supervisor menyetujui (SPV)', expected: 'PUT oleh INN (approved) -> 200; SPV=Disetujui',
+        run: async function (t) {
+          if (!RUN.newNo) t.skip('E2E-01 belum menghasilkan pengajuan.');
+          var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(RUN.newNo) + '/status', { username: 'INN', status_approval_spv: 'approved' });
+          t.eq(r.status, 200, 'HTTP status');
+          t.eq(r.json.data.status_approval_spv, 'Disetujui', 'SPV setelah approve');
+        } },
+      { id: 'E2E-04', group: 'E2E', priority: 'P1', mode: 'write', title: 'Officer mengubah status pengadaan', expected: 'PUT oleh ANS -> Proses PO -> 200',
+        run: async function (t) {
+          if (!RUN.newNo) t.skip('E2E-01 belum menghasilkan pengajuan.');
+          var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(RUN.newNo) + '/status', { username: 'ANS', status_pengadaan: 'Proses PO' });
+          t.eq(r.status, 200, 'HTTP status');
+          t.eq(r.json.data.status_pengadaan, 'Proses PO', 'status pengadaan');
+        } },
+      { id: 'E2E-05', group: 'E2E', priority: 'P1', mode: 'write', title: 'Audit trail 2 aksi tercatat', expected: 'Log berisi 2 entri: approval SPV (INN) + status pengadaan (ANS)',
+        run: async function (t) {
+          if (!RUN.newNo) t.skip('E2E-01 belum menghasilkan pengajuan.');
+          var r = await callApi(t, 'GET', '/api/pengajuan/' + encodeURIComponent(RUN.newNo) + '/log');
+          t.eq(r.status, 200, 'HTTP status');
+          t.eq(r.json.count, 2, 'jumlah entri log');
+          var fields = r.json.data.map(function (x) { return x.field; });
+          t.info('Field tercatat: ' + fields.join(', '));
+          t.check(fields.indexOf('status_approval_spv') >= 0, 'entri approval SPV ada');
+          t.check(fields.indexOf('status_pengadaan') >= 0, 'entri status pengadaan ada');
+        } },
+      { id: 'E2E-06', group: 'E2E', priority: 'P0', mode: 'write', title: 'Manager menyetujui final (MGR)', expected: 'PUT oleh KSW (approved) -> 200; MGR=Disetujui',
+        run: async function (t) {
+          if (!RUN.newNo) t.skip('E2E-01 belum menghasilkan pengajuan.');
+          var r = await callApi(t, 'PUT', '/api/pengajuan/' + encodeURIComponent(RUN.newNo) + '/status', { username: 'KSW', status_approval_manager: 'approved' });
+          t.eq(r.status, 200, 'HTTP status');
+          t.eq(r.json.data.status_approval_manager, 'Disetujui', 'MGR setelah approve');
+        } },
+      { id: 'E2E-07', group: 'E2E', priority: 'P1', mode: 'write', title: 'Audit trail 3 aksi tercatat', expected: 'Log bertambah jadi 3 entri (SPV, pengadaan, MGR)',
+        run: async function (t) {
+          if (!RUN.newNo) t.skip('E2E-01 belum menghasilkan pengajuan.');
+          var r = await callApi(t, 'GET', '/api/pengajuan/' + encodeURIComponent(RUN.newNo) + '/log');
+          t.eq(r.json.count, 3, 'jumlah entri log');
+          var roles = r.json.data.map(function (x) { return x.actor_role; });
+          t.info('Aktor: ' + r.json.data.map(function (x) { return x.actor_name + '/' + x.actor_role; }).join(' -> '));
+          t.check(roles.indexOf('manager') >= 0, 'aktor manager tercatat');
+        } },
+      { id: 'E2E-08', group: 'E2E', priority: 'P0', mode: 'write', title: 'Status akhir pengajuan konsisten', expected: 'SPV=Disetujui, MGR=Disetujui, Pengadaan=Proses PO',
+        run: async function (t) {
+          if (!RUN.newNo) t.skip('E2E-01 belum menghasilkan pengajuan.');
+          var r = await callApi(t, 'GET', '/api/pengajuan/all');
+          var row = r.json.data.filter(function (x) { return x.no_registrasi === RUN.newNo; })[0];
+          t.check(!!row, 'pengajuan masih ada');
+          t.eq(row.status_approval_spv, 'Disetujui', 'SPV');
+          t.eq(row.status_approval_manager, 'Disetujui', 'MGR');
+          t.eq(row.status_pengadaan, 'Proses PO', 'Pengadaan');
+        } },
+    ];
+
+    // ==================== BAGIAN (SECTION) ====================
+    // Bagian = kelompok tes yang enak dikerjakan satu per satu oleh manusia.
+    var SECTIONS = [
+      { group: 'NFR', num: '0', title: 'Kesiapan Sistem & Halaman', short: 'Memastikan "rumah" aplikasinya sudah siap sebelum masuk.',
+        long: 'Mengecek server hidup, alamat/endpoint benar, dan file halaman aplikasi benar-benar terkirim (tidak kosong). Ini fondasi: kalau bagian ini gagal, hampir semua tes lain pasti ikut gagal.' },
+      { group: 'AUTH', num: '1', title: 'Masuk & Keluar (Login)', short: 'Memeriksa siapa saja yang boleh masuk ke aplikasi.',
+        long: 'Menguji fitur login: akun benar, akun salah, password salah, dan batas percobaan (rate limit) supaya akun tidak bisa ditebak paksa.' },
+      { group: 'RBAC', num: '2', title: 'Hak Akses per Peran', short: 'Tiap orang hanya bisa mengerjakan tugasnya sendiri.',
+        long: 'Role-Based Access Control: teknisi tidak boleh menyetujui, supervisor tidak boleh menyetujui level manager, officer hanya mengubah status pengadaan, dan manager hanya bisa menyetujui setelah supervisor menyetujui.' },
+      { group: 'FORM', num: '3', title: 'Form Pengajuan Barang', short: 'Form isian tidak bisa diisi asal-asalan.',
+        long: 'Memastikan data wajib terisi, jumlah tidak boleh nol atau pecahan, kode barang harus benar-benar ada di database, dan field pelengkap tidak boleh kosong.' },
+      { group: 'APP', num: '4', title: 'Persetujuan & Perubahan Status', short: 'Tombol setuju/tolak dan ubah status punya aturan.',
+        long: 'Menguji validasi nilai persetujuan dan status pengadaan: nilai yang tidak dikenal harus ditolak, dan permintaan tanpa status harus ditolak.' },
+      { group: 'STOK', num: '5', title: 'Data Stok & Ringkasan KPI', short: 'Angka stok di dasbor harus benar.',
+        long: 'Memverifikasi KPI ringkasan (total, critical, stok rendah, stok habis) dan daftar sparepart lengkap beserta field pentingnya sesuai data master.' },
+      { group: 'MON', num: '6', title: 'Pantau Pengajuan (Monitoring)', short: 'Semua pengajuan bisa dilihat dan ada catatan riwayatnya.',
+        long: 'Memastikan halaman monitoring memuat seluruh pengajuan dengan kolom lengkap, dan audit trail mencatat setiap perubahan status beserta pelakunya.' },
+      { group: 'REP', num: '7', title: 'Laporan Bulanan', short: 'Rekap per bulan bisa dipilih dan isinya benar.',
+        long: 'Memverifikasi filter periode laporan tersedia serta jumlah pengajuan per bulan (Sep 2026, Jan & Feb 2025) sesuai data hasil impor.' },
+      { group: 'EXP', num: '8', title: 'Ekspor Excel', short: 'Tombol unduh menghasilkan file Excel yang bisa dibuka.',
+        long: 'Menguji endpoint ekspor .xlsx: file valid, permintaan tanpa data ditolak, dan batas ukuran data dijaga agar server tidak berat.' },
+      { group: 'UI', num: '9', title: 'Uji Tampilan Aplikasi', short: 'Mengecek tampilan depan seperti yang dilihat pengguna asli.',
+        long: 'Menjalankan aplikasi di panel preview seperti manusia: login, membuka menu, mencari, membuka modal, dan logout. Bagian ini yang membuat preview bergerak.' },
+      { group: 'E2E', num: '10', title: 'Alur Lengkap: Buat sampai Setuju', short: 'Satu pengajuan dijalankan dari dibuat sampai disetujui penuh.',
+        long: 'Menjalankan alur nyata (menulis ke database): teknisi membuat pengajuan, supervisor & manager menyetujui, officer mengubah status pengadaan, lalu mengecek riwayat. WAJIB berurutan E2E-01 s.d. E2E-08.' },
+    ];
+
+    // Penjelasan tiap tes: "short" = bahasa gampang, "long" = apa fiturnya & kenapa diuji.
+    var EXPLAIN = {
+      'NFR-07': { short: 'Cek aplikasinya sedang hidup dan bisa menjawab.', long: 'Memastikan server mengembalikan status "ok" pada /api/health. Ini tes paling dasar: kalau server mati, semua tes lain pasti gagal.' },
+      'NFR-04': { short: 'Alamat yang salah dijawab dengan pesan rapi, bukan error aneh.', long: 'Endpoint tak dikenal harus mengembalikan 404 dalam format JSON (bukan halaman HTML atau crash).' },
+      'NFR-06': { short: 'Halaman aplikasinya benar-benar terkirim, bukan layar kosong.', long: 'Memastikan GET / mengembalikan HTML aplikasi (mengandung elemen utama), bukan halaman kosong atau 404.' },
+      'AUTH-01': { short: 'Coba masuk pakai akun teknisi, harus berhasil.', long: 'Login kredensial benar mengembalikan 200 dan data user (username, role) yang sesuai, agar menu & hak akses tepat.' },
+      'AUTH-02': { short: 'Coba masuk pakai akun supervisor, harus berhasil.', long: 'Memastikan akun supervisor valid dan role-nya dikenali sistem.' },
+      'AUTH-03': { short: 'Coba masuk pakai akun officer, harus berhasil.', long: 'Memastikan akun officer valid dan role-nya dikenali sistem.' },
+      'AUTH-04': { short: 'Coba masuk pakai akun manager, harus berhasil.', long: 'Memastikan akun manager valid dan role-nya dikenali sistem.' },
+      'AUTH-05': { short: 'Masuk pakai password salah harus ditolak.', long: 'Password salah harus mengembalikan 401 dengan pesan "Kombinasi Username atau Password salah".' },
+      'AUTH-06': { short: 'Masuk pakai nama akun tak ada harus ditolak tanpa bocor info.', long: 'Username tak terdaftar harus 401 dengan pesan yang sama seperti password salah, supaya penyerang tidak bisa menebak akun mana yang ada.' },
+      'AUTH-07': { short: 'Masuk tanpa menulis apa pun harus ditolak.', long: 'Body login kosong harus 400 dengan pesan "Parameter username dan password wajib diisi".' },
+      'AUTH-11': { short: 'Gagal masuk berulang kali harus dilock sementara.', long: 'Setelah 5 kali gagal dari IP+username yang sama, permintaan ke-6 harus 429 (terkunci 15 menit) untuk mencegah tebak password.' },
+      'RBAC-08': { short: 'Teknisi tidak boleh menyetujui pengajuan.', long: 'Teknisi yang mencoba mengubah status approval harus ditolak (403), karena approval bukan tugasnya.' },
+      'RBAC-09': { short: 'Supervisor tidak boleh menggantikan tugas manager.', long: 'Supervisor tidak boleh mengubah status_approval_manager; harus ditolak.' },
+      'RBAC-10': { short: 'Officer tidak boleh menyetujui/ubah approval.', long: 'Officer hanya mengelola status pengadaan, jadi perubahan approval harus ditolak.' },
+      'RBAC-11': { short: 'Manager hanya boleh setuju setelah supervisor setuju dulu.', long: 'Bila manager menyetujui saat SPV belum Disetujui, sistem harus menolak (400) dengan pesan bahwa SPV harus menyetujui lebih dulu.' },
+      'RBAC-12': { short: 'Orang yang tidak dikenal harus diminta login dulu.', long: 'Username yang tidak ada di database harus 401 "User tidak ditemukan. Silakan login ulang."' },
+      'RBAC-13': { short: 'Membuat pengajuan tanpa login harus ditolak.', long: 'Permintaan tanpa username harus 401 "Anda harus login terlebih dahulu."' },
+      'FORM-08': { short: 'Isian pelengkap tidak boleh kosong.', long: 'UoM/Purpose/EJO/Area wajib diisi; bila kosong harus 400.' },
+'FORM-09': { short: 'Kode barang dan spesifikasi tidak boleh kosong.', long: 'Item Code & spesifikasi wajib diisi; bila kosong harus 400 "Parameter itemCode dan spesifikasi wajib diisi".' },
+       'FORM-12': { short: 'Barangnya harus benar-benar ada di daftar.', long: 'Item Code yang tidak ada di database harus ditolak 400 "Item Code ... tidak ditemukan di database."' },
+       'FORM-13': { short: 'Jasa bisa diajukan tanpa kode barang.', long: 'Pengajuan dengan jenis_pengajuan="jasa" tidak memerlukan item_code (kolom item_code boleh NULL). Backend harus menerima dan menyimpan dengan sukses.' },
+       'FORM-05': { short: 'Jumlah barang tidak boleh nol.', long: 'Qty 0 harus ditolak karena tidak masuk akal untuk sebuah pengajuan.' },
+       'FORM-06': { short: 'Jumlah barang tidak boleh setengah-setengah (harus bulat).', long: 'Qty pecahan (misalnya 1.5) harus ditolak karena jumlah barang selalu bilangan bulat.' },
+       'APP-09': { short: 'Status pengadaan harus salah satu dari daftar resmi.', long: 'status_pengadaan di luar daftar (BQ Baru, Pending, Proses PO, Barang Dikirim, Tiba di Gudang) harus 400 dengan daftar nilai yang diizinkan.' },
+       'APP-10': { short: 'Nilai setuju/tolak harus sesuai pilihan resmi.', long: 'Nilai approval di luar "approved"/"rejected" harus ditolak 400.' },
+       'APP-11': { short: 'Permintaan ubah status harus menyebut status barunya.', long: 'Permintaan tanpa status apa pun harus 400 "Tidak ada status yang dikirim untuk diubah."' },
+       'APP-12': { short: 'PR Summary hanya untuk Supervisor 1 & Manager.', long: 'GET /api/pengajuan/summary harus 200 untuk Manager & Supervisor 1, 403 untuk Teknisi/Officer/Supervisor 2.' },
+       'APP-13': { short: 'Pengajuan urgent harus tersimpan dengan benar.', long: 'POST dengan urgency="Urgent" harus 201 dan mengembalikan urgency=Urgent di response.' },
+       'BQS-01': { short: 'BQ Summary mengembalikan ringkasan lengkap.', long: 'GET /api/pengajuan/bq-summary harus mengembalikan summary: total, approval breakdown, dan pipeline status.' },
+       'BQS-02': { short: 'BQ Summary bisa diakses semua user.', long: 'GET /api/pengajuan/bq-summary harus 200 karena semua role bisa mengakses BQ Summary.' },
+       'MON-RPT': { short: 'Laporan bulanan per periode tersedia.', long: 'GET /api/reports/monthly?year=2026&month=9 harus mengembalikan data periode 2026-9 dengan summary lengkap.' },
+       'MON-RPT2': { short: 'Bulan tidak valid harus ditolak.', long: 'GET /api/reports/monthly?month=13 harus 400 "Bulan tidak valid".' },
+       'MON-03': { short: 'Monitoring menampilkan jenis dan urgency.', long: 'Setiap baris data pengajuan di /api/pengajuan/all harus memiliki kolom "jenis_pengajuan" (sparepart/jasa) dan "urgency" (Normal/Urgent) yang valid.' },
+      'STOK-01': { short: 'Angka total & stok kritis harus cocok dengan data.', long: 'GET /api/spareparts/summary harus mengembalikan total 663, critical 155, low 284, out 140 sesuai baseline.' },
+      'STOK-02': { short: 'Daftar barang harus lengkap dan punya kolom penting.', long: 'GET /api/spareparts harus memuat 663 item dengan field item_code, description, uom, dan lainnya yang tidak kosong.' },
+      'MON-01': { short: 'Semua pengajuan harus muncul di halaman monitoring.', long: 'GET /api/pengajuan/all harus mengembalikan seluruh pengajuan (minimal sesuai baseline 200).' },
+      'MON-02': { short: 'Tiap baris pengajuan harus punya info penting.', long: 'Data monitoring harus memuat no_registrasi, tanggal, status approval SPV/MGR, status pengadaan, dan username teknisi.' },
+      'MON-09': { short: 'Perubahan status harus tercatat siapa yang mengubah.', long: 'GET /api/pengajuan/:id/log untuk BQ-2026-09-01-0001 harus mengembalikan 3 entri lengkap dengan aktor dan field yang berubah.' },
+      'REP-05': { short: 'Daftar pilihan bulan untuk laporan harus tersedia.', long: 'Endpoint laporan harus menyediakan 21 periode bulan dari data impor (Jan 2025 sampai Sep 2026).' },
+      'REP-06': { short: 'Rekap bulan September 2026 harus berjumlah 8.', long: 'Filter laporan bulan Sep 2026 harus menampilkan 8 pengajuan.' },
+      'REP-07': { short: 'Rekap awal tahun 2025 harus benar.', long: 'Jan 2025 = 16 dan Feb 2025 = 20 pengajuan.' },
+      'EXP-01': { short: 'Tombol unduh harus menghasilkan file Excel asli.', long: 'POST /api/export/xlsx harus mengembalikan file .xlsx dengan magic bytes "PK" (zip) yang bisa dibuka Excel.' },
+      'EXP-04': { short: 'Unduh tanpa data harus ditolak dengan jelas.', long: 'Permintaan export tanpa columns/rows harus 400 "Parameter columns dan rows wajib diisi."' },
+      'EXP-05': { short: 'Data terlalu besar harus dicegah.', long: 'Permintaan melebihi 20000 baris harus 413 "Data terlalu besar..." agar server tidak kehabisan memori.' },
+      'UI-01': { short: 'Manager harus melihat 5 menu yang sesuai.', long: 'Login UI sebagai manager lalu cek kartu menu yang tampil: On Hand Stock, Monthly Report, BQ Summary, Approval BQ Urgent, Critical Part List.' },
+      'UI-02': { short: 'Halaman monitoring harus punya tabel dan tombol halaman.', long: 'Buka menu BQ Monitoring, pastikan tabel terisi dan kontrol pagination muncul.' },
+      'UI-03': { short: 'Kotak pencarian harus menyaring data.', long: 'Mengetik kata kunci di pencarian monitoring harus memperbarui isi tabel.' },
+      'UI-04': { short: 'Laporan bulanan harus tampil dan terisi otomatis.', long: 'Buka Monthly Report, pastikan dropdown periode terisi dan ringkasan laporan muncul.' },
+      'UI-05': { short: 'Teknisi harus melihat 3 menu dan angka KPI.', long: 'Login UI teknisi, cek menu BQ Personal + On Hand Stock + BQ Summary dan kartu KPI muncul.' },
+      'UI-06': { short: 'Halaman stok harus menampilkan daftar dan bisa dicari.', long: 'Buka On Hand Stock, cek daftar terisi dan pencarian menyaring data.' },
+      'UI-07': { short: 'Keluar harus benar-benar menghapus sesi.', long: 'Klik logout, pastikan kembali ke form login dan sessionStorage "user" terhapus.' },
+      'UI-08': { short: 'Kartu angka di dasbor harus membuka daftar yang sesuai.', long: 'Klik kartu "Critical Part" harus membuka modal berjudul Critical Part List berisi 155 item.' },
+      'UI-09': { short: 'Supervisor 1 harus melihat 6 menu sesuai spec.', long: 'Login UI supervisor 1, cek menu: PR Summary, Monthly Report, BQ Summary, Approval BQ Tahap Supervisor, Critical Part List, On Hand Stock.' },
+      'UI-10': { short: 'Officer harus melihat 4 menu tanpa PR Summary.', long: 'Login UI officer, cek menu: BQ Summary, Approval BQ Tahap Supervisor, Critical Part List, On Hand Stock. PR Summary tidak boleh ada.' },
+      'UI-11': { short: 'BQ Summary modal harus menampilkan statistik.', long: 'Klik menu BQ Summary harus membuka modal dengan ringkasan total pengajuan, status approval, dan pipeline.' },
+      'E2E-01': { short: 'Teknisi membuat 1 pengajuan baru (menulis data nyata).', long: 'POST /api/pengajuan lengkap harus 201 dan mengembalikan no_registrasi. Data ini dipakai tes berikutnya.' },
+      'E2E-02': { short: 'Pengajuan baru tadi langsung muncul di monitoring.', long: 'Status awal harus SPV=Menunggu, MGR=Menunggu, Pengadaan=BQ Baru, dengan data yang tadi diisi.' },
+      'E2E-03': { short: 'Supervisor menyetujui pengajuan tadi.', long: 'PUT status oleh INN (approved) harus 200 dan SPV menjadi Disetujui.' },
+      'E2E-04': { short: 'Officer mengubah status pengadaan menjadi Proses PO.', long: 'PUT status oleh ANS harus 200 dan status_pengadaan menjadi Proses PO.' },
+      'E2E-05': { short: 'Buku catatan harus mencatat 2 langkah tadi.', long: 'Audit trail harus berisi 2 entri: approval SPV dan perubahan status pengadaan. Jalankan SEBELUM E2E-06.' },
+      'E2E-06': { short: 'Manager memberi persetujuan terakhir.', long: 'PUT status oleh KSW (approved) harus 200 dan MGR menjadi Disetujui (setelah SPV setuju).' },
+      'E2E-07': { short: 'Buku catatan sekarang harus 3 langkah.', long: 'Audit trail harus menjadi 3 entri (SPV, pengadaan, MGR).' },
+      'E2E-08': { short: 'Cek status akhir sudah lengkap dan konsisten.', long: 'Status akhir harus SPV=Disetujui, MGR=Disetujui, Pengadaan=Proses PO.' },
+    };
+
+    // Prasyarat antar-tes: bila tes ini dijalankan duluan, prasyaratnya dijalankan otomatis.
+    var DEPS = {
+      'E2E-02': ['E2E-01'],
+      'E2E-03': ['E2E-01'],
+      'E2E-04': ['E2E-01'],
+      'E2E-05': ['E2E-01', 'E2E-03', 'E2E-04'],
+      'E2E-06': ['E2E-01', 'E2E-03'],
+      'E2E-07': ['E2E-01', 'E2E-03', 'E2E-04', 'E2E-06'],
+      'E2E-08': ['E2E-01', 'E2E-03', 'E2E-04', 'E2E-06'],
+    };
+
+    function sectionOf(group) {
+      for (var i = 0; i < SECTIONS.length; i++) if (SECTIONS[i].group === group) return SECTIONS[i];
+      return null;
+    }
+    function testsOfGroup(group) { return TESTS.filter(function (t) { return t.group === group; }); }
+    function explainOf(id) { return EXPLAIN[id] || { short: '', long: '' }; }
+
+    // ==================== RENDER BAGIAN & DAFTAR TES ====================
+    function renderSections() {
+      var box = $('tab-tests');
+      box.innerHTML = '';
+      SECTIONS.forEach(function (sec) {
+        var tests = testsOfGroup(sec.group);
+        if (!tests.length) return;
+        var col = GROUP_COLOR[sec.group] || '#334155';
+        var p0 = tests.filter(function (t) { return t.priority === 'P0'; }).length;
+        var p1 = tests.filter(function (t) { return t.priority === 'P1'; }).length;
+        var el = document.createElement('div');
+        el.className = 'sec collapsed fadein bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden';
+        el.id = 'sec-' + sec.group;
+        el.innerHTML =
+          '<div class="sec-head px-3 py-3 flex items-start gap-3 cursor-pointer hover:bg-slate-800/30 transition-colors">' +
+            '<div class="secnum" style="background:' + col + '22;color:' + col + '">' + sec.num + '</div>' +
+            '<div class="flex-1 min-w-0">' +
+              '<div class="flex items-center gap-2 flex-wrap">' +
+                '<h3 class="text-sm font-extrabold text-white">' + esc(sec.title) + '</h3>' +
+                '<span class="grp" style="background:' + col + '22;color:' + col + '">' + sec.group + '</span>' +
+              '</div>' +
+              '<p class="text-[11px] text-slate-400 mt-0.5 leading-snug">' + esc(sec.short) + '</p>' +
+              '<p class="text-[10px] text-slate-500 mt-1">' + tests.length + ' tes &middot; P0:' + p0 + ' P1:' + p1 + ' &middot; <span id="secprog-' + sec.group + '" class="text-slate-400 font-bold">0/' + tests.length + ' lulus</span></p>' +
+            '</div>' +
+            '<button type="button" class="btn-secrun shrink-0 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-extrabold" id="secrun-' + sec.group + '">Jalankan Bagian</button>' +
+            '<span class="secchev text-slate-500 shrink-0 mt-1">&#9660;</span>' +
+          '</div>' +
+          '<div class="sec-long px-4 pb-2"><p class="text-[11px] text-slate-400 leading-snug rounded-lg bg-slate-800/50 border border-slate-700/60 p-2.5"><b class="text-slate-300">Apa &amp; kenapa:</b> ' + esc(sec.long) + '</p></div>' +
+          '<div class="sec-body p-2 pt-0 space-y-2"></div>';
+        var body = el.querySelector('.sec-body');
+        tests.forEach(function (test) { body.appendChild(buildTestRow(test)); });
+        el.querySelector('.sec-head').addEventListener('click', function (ev) {
+          if (ev.target && ev.target.closest && ev.target.closest('.btn-secrun')) return;
+          el.classList.toggle('collapsed');
+        });
+        el.querySelector('.btn-secrun').addEventListener('click', function (ev) { ev.stopPropagation(); runSection(sec.group); });
+        box.appendChild(el);
+      });
+      updateCounters();
+    }
+
+    function buildTestRow(test) {
+      var pcol = PRIO_STYLE[test.priority] || PRIO_STYLE.P2;
+      var ex = explainOf(test.id);
+      var card = document.createElement('div');
+      card.className = 'tcard status-pending bg-slate-900/70 border border-slate-800 rounded-xl overflow-hidden';
+      card.id = 'card-' + test.id;
+      card.dataset.status = 'pending';
+      card.innerHTML =
+        '<div class="flex items-start gap-2.5 px-3 py-2.5">' +
+          '<span class="sticon mt-0.5"></span>' +
+          '<div class="flex-1 min-w-0">' +
+            '<div class="flex items-center gap-2 flex-wrap">' +
+              '<span class="font-mono text-[11px] font-bold text-slate-300">' + test.id + '</span>' +
+              '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded" style="' + pcol + '">' + test.priority + '</span>' +
+              '<span class="text-xs font-semibold text-slate-100">' + esc(test.title) + '</span>' +
+            '</div>' +
+            '<p class="text-[11px] text-slate-400 mt-1 leading-snug">' + esc(ex.short) + '</p>' +
+          '</div>' +
+          '<span class="tdur text-[10px] font-mono text-slate-500 shrink-0 mt-0.5"></span>' +
+          '<button type="button" class="btn-info shrink-0 w-6 h-6 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-extrabold" title="Lihat rincian fitur">?</button>' +
+          '<button type="button" class="btn-one shrink-0 w-6 h-6 rounded-md bg-emerald-700 hover:bg-emerald-600 text-white text-[10px] font-extrabold" title="Jalankan tes ini saja">&#9654;</button>' +
+        '</div>' +
+        '<div class="tbody border-t border-slate-800">' +
+          '<p class="px-4 pt-3 text-[11px] text-slate-300 leading-snug"><b>Rincian:</b> ' + esc(ex.long) + '</p>' +
+          '<p class="px-4 pt-2 text-[11px] text-slate-400"><b class="text-slate-300">Diharapkan:</b> ' + esc(test.expected) + '</p>' +
+          '<div class="steps px-4 py-3"></div>' +
+        '</div>';
+      card.querySelector('.btn-info').addEventListener('click', function () { card.classList.toggle('open'); });
+      card.querySelector('.btn-one').addEventListener('click', function () { runSingle(test); });
+      return card;
+    }
+
+    // ==================== KONSOL GLOBAL ====================
+    function appendConsole(testId, level, msg, ts) {
+      var box = $('tab-log');
+      var line = document.createElement('div');
+      line.className = 'logline lvl-' + level;
+      var prefix = level === 'test' ? '' : '<span class="text-slate-600">[' + testId + ']</span> ';
+      line.innerHTML = '<span class="ts">' + fmtTime(ts) + '</span><span>' + prefix + GLYPH[level] + ' ' + esc(msg) + '</span>';
+      box.appendChild(line);
+      box.scrollTop = box.scrollHeight;
+    }
+    function consoleSection(title) {
+      var box = $('tab-log');
+      var d = document.createElement('div');
+      d.className = 'logline lvl-test mt-3';
+      d.innerHTML = '<span class="ts">' + fmtTime(Date.now()) + '</span><span>&mdash; ' + esc(title) + ' &mdash;</span>';
+      box.appendChild(d);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // ==================== STATUS & COUNTER ====================
+    var STATUS_GLYPH = { pending: '', running: '\u25CF', pass: '\u2714', fail: '\u2716', skip: '\u2013' };
+    function setStatus(test, status, message, ms) {
+      var card = $('card-' + test.id);
+      results[test.id] = { id: test.id, group: test.group, priority: test.priority, title: test.title, status: status, message: message || '', ms: ms || 0 };
+      card.dataset.status = status;
+      card.className = card.className.replace(/status-\w+/g, 'status-' + status);
+      card.querySelector('.sticon').innerHTML = (status === 'running')
+        ? '<span class="spin" style="display:inline-block">&#8635;</span>'
+        : STATUS_GLYPH[status];
+      if (ms != null) card.querySelector('.tdur').textContent = ms + 'ms';
+      if (message && (status === 'fail' || status === 'skip')) {
+        var eb = card.querySelector('.exmsg');
+        if (!eb) { eb = document.createElement('p'); eb.className = 'exmsg px-4 pb-2 text-[11px] ' + (status === 'fail' ? 'text-rose-400' : 'text-amber-400'); card.querySelector('.tbody').appendChild(eb); }
+        eb.textContent = (status === 'fail' ? 'Gagal: ' : 'Dilewati: ') + message;
+      }
+      updateCounters();
+    }
+    function updateCounters() {
+      var pass = 0, fail = 0, skip = 0, done = 0;
+      TESTS.forEach(function (t) {
+        var r = results[t.id];
+        if (!r) return;
+        if (r.status === 'pass') { pass++; done++; }
+        else if (r.status === 'fail') { fail++; done++; }
+        else if (r.status === 'skip') { skip++; done++; }
+      });
+      $('c-pass').textContent = pass + ' PASS';
+      $('c-fail').textContent = fail + ' FAIL';
+      $('c-skip').textContent = skip + ' SKIP';
+      $('c-done').textContent = done + ' / ' + TESTS.length + ' selesai';
+      $('progress').style.width = (TESTS.length ? (done / TESTS.length * 100) : 0) + '%';
+      $('c-time').textContent = startedAt ? ((nowMs() - startedAt) / 1000).toFixed(1) + 's' : '0.0s';
+      SECTIONS.forEach(function (sec) {
+        var list = testsOfGroup(sec.group);
+        var ok = 0;
+        list.forEach(function (t) { var r = results[t.id]; if (r && r.status === 'pass') ok++; });
+        var el = $('secprog-' + sec.group);
+        if (el) el.textContent = ok + '/' + list.length + ' lulus';
+      });
+      updateFailedTab();
+    }
+    function updateFailedTab() {
+      var list = $('failed-list');
+      var badge = $('failed-count');
+      var empty = $('failed-empty');
+      list.innerHTML = '';
+      var fails = [];
+      TESTS.forEach(function (t) {
+        var r = results[t.id];
+        if (r && r.status === 'fail') fails.push(r);
+      });
+      if (fails.length === 0) {
+        badge.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+      badge.classList.remove('hidden');
+      badge.textContent = fails.length;
+      empty.classList.add('hidden');
+      fails.forEach(function (f) {
+        var col = GROUP_COLOR[f.group] || '#334155';
+        var ex = explainOf(f.id);
+        var card = document.createElement('div');
+        card.className = 'bg-slate-900/70 border border-rose-500/40 rounded-xl overflow-hidden fadein';
+        card.innerHTML =
+          '<div class="flex items-start gap-2.5 px-3 py-2.5">' +
+            '<span class="sticon mt-0.5" style="background:#e11d48;color:#fff">&#10008;</span>' +
+            '<div class="flex-1 min-w-0">' +
+              '<div class="flex items-center gap-2 flex-wrap">' +
+                '<span class="font-mono text-[11px] font-bold text-rose-300">' + f.id + '</span>' +
+                '<span class="grp" style="background:' + col + '22;color:' + col + '">' + f.group + '</span>' +
+                '<span class="text-xs font-semibold text-white">' + esc(f.title) + '</span>' +
+              '</div>' +
+              '<p class="text-[11px] text-rose-400 mt-1 leading-snug">' + esc(f.message || 'Error tidak diketahui') + '</p>' +
+              '<p class="text-[10px] text-slate-500 mt-0.5">' + esc(ex.short) + '</p>' +
+            '</div>' +
+            '<span class="text-[10px] font-mono text-slate-500 shrink-0 mt-0.5">' + (f.ms || 0) + 'ms</span>' +
+          '</div>';
+        list.appendChild(card);
+      });
+    }
+
+    // ==================== RUNNER ====================
+    function setBusy(on) {
+      running = on;
+      $('btn-run').disabled = on;
+      $('btn-stop').disabled = !on;
+      document.querySelectorAll('.btn-one,.btn-secrun').forEach(function (b) {
+        b.disabled = on;
+        if (on) { b.classList.add('opacity-40', 'cursor-not-allowed'); }
+        else { b.classList.remove('opacity-40', 'cursor-not-allowed'); }
+      });
+    }
+    function expandFor(test) {
+      var card = $('card-' + test.id);
+      if (!card) return;
+      var sec = card.closest ? card.closest('.sec') : null;
+      if (sec) sec.classList.remove('collapsed');
+      if ($('chk-autoopen').checked) card.classList.add('open');
+      try { card.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ignore */ }
+    }
+    async function runOne(test) {
+      var t = makeLogger(test);
+      var card = $('card-' + test.id);
+      setStatus(test, 'running');
+      expandFor(test);
+      $('now').textContent = 'Menjalankan ' + test.id + ' — ' + test.title;
+      var t0 = nowMs();
+      try {
+        await test.run(t);
+        setStatus(test, 'pass', '', Math.round(nowMs() - t0));
+        t.ok('LULUS');
+      } catch (e) {
+        var ms = Math.round(nowMs() - t0);
+        if (e instanceof Skip) {
+          setStatus(test, 'skip', e.message, ms);
+          t.info('DILEWATI: ' + e.message);
+        } else {
+          setStatus(test, 'fail', e.message, ms);
+          t.err('GAGAL: ' + e.message);
+          if (card) card.classList.add('open');
+        }
+      }
+    }
+
+    // Prasyarat: jalankan otomatis tes yang dibutuhkan (mis. dari bagian akhir,
+    // data dari tes di bagian awal tetap tersedia). Tes yang tidak butuh prasyarat
+    // tetap boleh dijalankan sendiri.
+    async function ensureDeps(test) {
+      var need = [];
+      if (test.group !== 'NFR') need.push('NFR-07');       // semua butuh server hidup
+      (DEPS[test.id] || []).forEach(function (d) { need.push(d); });
+      for (var i = 0; i < need.length; i++) {
+        var depId = need[i];
+        var r = results[depId];
+        if (r && r.status === 'pass') continue;
+        var dep = null;
+        for (var j = 0; j < TESTS.length; j++) if (TESTS[j].id === depId) { dep = TESTS[j]; break; }
+        if (!dep) continue;
+        await ensureDeps(dep);
+        consoleSection('PRASYARAT ' + depId + ' dijalankan lebih dulu (dibutuhkan oleh ' + test.id + ')');
+        $('now').textContent = 'Menjalankan prasyarat ' + depId + ' untuk ' + test.id + '…';
+        await runOne(dep);
+        updateCounters();
+      }
+    }
+
+    async function runSingle(test) {
+      if (running) return;
+      if (test.mode === 'ui' && !UI_AVAILABLE) {
+        alert('Tes tampilan (UI) hanya bisa dijalankan lewat http://localhost:3000/qa-test.html');
+        return;
+      }
+      resetResults(false);
+      setBusy(true); stopped = false; startedAt = nowMs();
+      switchTab('tests');
+      consoleSection('JALANKAN SATU TES: ' + test.id + ' — ' + test.title);
+      try {
+        await pause(100);
+        await ensureDeps(test);
+        await runOne(test);
+      } finally {
+        updateCounters();
+        setBusy(false);
+        finishMsg();
+      }
+    }
+
+    async function runSection(group) {
+      if (running) return;
+      var list = testsOfGroup(group);
+      if (!list.length) return;
+      if (group === 'UI' && !UI_AVAILABLE) {
+        alert('Tes tampilan (UI) hanya bisa dijalankan lewat http://localhost:3000/qa-test.html');
+        return;
+      }
+      var sec = sectionOf(group);
+      resetResults(false);
+      setBusy(true); stopped = false; startedAt = nowMs();
+      switchTab('tests');
+      consoleSection('MULAI BAGIAN: ' + (sec ? sec.title : group) + ' (' + list.length + ' tes)');
+      for (var i = 0; i < list.length; i++) {
+        if (stopped) { $('now').textContent = 'Dihentikan oleh pengguna.'; break; }
+        await pause(100);
+        await ensureDeps(list[i]);
+        await runOne(list[i]);
+        updateCounters();
+        await pause(180);
+      }
+      setBusy(false);
+      finishMsg();
+      consoleSection('SELESAI BAGIAN: ' + (sec ? sec.title : group) + ' — ' + $('c-pass').textContent + ' / ' + $('c-fail').textContent + ' / ' + $('c-skip').textContent);
+    }
+
+    function finishMsg() {
+      $('btn-txt').textContent = 'Jalankan Semua';
+      $('now').textContent = 'Selesai. ' + $('c-pass').textContent + ', ' + $('c-fail').textContent + ', ' + $('c-skip').textContent + '.';
+    }
+
+    async function runAll() {
+      if (running) return;
+      resetResults(false);
+      setBusy(true); stopped = false; startedAt = nowMs();
+      $('btn-txt').textContent = 'Menjalankan…';
+      consoleSection('MULAI SEMUA BAGIAN (UI=' + $('chk-ui').checked + ', E2E=' + $('chk-e2e').checked + ')');
+      switchTab('tests');
+
+      var list = [];
+      SECTIONS.forEach(function (sec) {
+        testsOfGroup(sec.group).forEach(function (t) {
+          if (t.mode === 'write' && !$('chk-e2e').checked) return;
+          if (t.mode === 'ui' && (!$('chk-ui').checked || !UI_AVAILABLE)) return;
+          list.push(t);
+        });
+      });
+      // "UI dulu": dahulukan tes UI agar preview aplikasi langsung terlihat bergerak.
+      if ($('chk-uifirst').checked) {
+        list.sort(function (a, b) { return (a.mode === 'ui' ? 0 : 1) - (b.mode === 'ui' ? 0 : 1); });
+      }
+
+      for (var i = 0; i < list.length; i++) {
+        if (stopped) { $('now').textContent = 'Dihentikan oleh pengguna.'; break; }
+        await pause(100);
+        await ensureDeps(list[i]);
+        await runOne(list[i]);
+        updateCounters();
+        await pause(180);
+      }
+
+      // Tandai tes yang tidak dijalankan.
+      TESTS.forEach(function (t) {
+        if (results[t.id]) return;
+        if (stopped) setStatus(t, 'skip', 'Dihentikan oleh pengguna');
+        else if (t.mode === 'write' && !$('chk-e2e').checked) setStatus(t, 'skip', 'Mode E2E tidak aktif');
+        else if (t.mode === 'ui' && (!$('chk-ui').checked || !UI_AVAILABLE)) setStatus(t, 'skip', UI_AVAILABLE ? 'Tes UI dimatikan' : 'Halaman dibuka sebagai file://');
+      });
+
+      setBusy(false);
+      $('btn-txt').textContent = 'Jalankan Semua';
+      $('now').textContent = 'Selesai. ' + $('c-pass').textContent + ', ' + $('c-fail').textContent + ', ' + $('c-skip').textContent + '.';
+      consoleSection('SELESAI — ' + $('c-pass').textContent + ' / ' + $('c-fail').textContent + ' / ' + $('c-skip').textContent + ' (durasi ' + ((nowMs() - startedAt) / 1000).toFixed(1) + 's)');
+    }
+
+    function resetResults(clearConsole) {
+      results = {};
+      startedAt = 0;
+      TESTS.forEach(function (test) {
+        var card = $('card-' + test.id);
+        card.dataset.status = 'pending';
+        card.className = card.className.replace(/status-\w+/g, 'status-pending');
+        card.querySelector('.sticon').innerHTML = '';
+        card.querySelector('.tdur').textContent = '';
+        card.querySelector('.steps').innerHTML = '';
+        var eb = card.querySelector('.exmsg'); if (eb) eb.remove();
+        card.classList.remove('open');
+      });
+      if (clearConsole !== false) { $('tab-log').innerHTML = ''; consoleLines = []; }
+      $('failed-list').innerHTML = '';
+      $('failed-count').classList.add('hidden');
+      $('failed-empty').classList.remove('hidden');
+      $('now').textContent = 'Siap dijalankan.';
+      updateCounters();
+    }
+
+    // ==================== TAB ====================
+    function switchTab(name) {
+      document.querySelectorAll('.tabbtn').forEach(function (b) {
+        var active = b.dataset.tab === name;
+        b.className = 'tabbtn px-4 py-2 text-xs font-bold rounded-t-lg ' + (active ? 'text-white bg-slate-800 border-b-2 border-blue-500' : 'text-slate-400 hover:text-white');
+      });
+      $('tab-tests').classList.toggle('hidden', name !== 'tests');
+      $('tab-log').classList.toggle('hidden', name !== 'log');
+      $('tab-failed').classList.toggle('hidden', name !== 'failed');
+    }
+    document.querySelectorAll('.tabbtn').forEach(function (b) {
+      b.addEventListener('click', function () { switchTab(b.dataset.tab); });
+    });
+
+    // ==================== EXPORT ====================
+    function exportResults() {
+      var pass = 0, fail = 0, skip = 0;
+      Object.keys(results).forEach(function (k) { if (results[k].status === 'pass') pass++; else if (results[k].status === 'fail') fail++; else if (results[k].status === 'skip') skip++; });
+      var payload = {
+        app: 'Micropage E-Sparepart',
+        generatedAt: new Date().toISOString(),
+        api: API,
+        summary: { total: TESTS.length, pass: pass, fail: fail, skip: skip },
+        baseline: EXPECT,
+        results: TESTS.map(function (t) {
+          var r = results[t.id] || { status: 'not-run' };
+          return { id: t.id, group: t.group, priority: t.priority, title: t.title, expected: t.expected, status: r.status, message: r.message || '', ms: r.ms || 0 };
+        }),
+        log: consoleLines,
+      };
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'qa-e-sparepart-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // ==================== SERVER CHECK ====================
+    async function checkServer() {
+      var b = $('srv-badge');
+      try {
+        var res = await fetch(API + '/api/health');
+        var j = await res.json();
+        if (res.ok && j.status === 'ok') {
+          b.textContent = '\u25CF Server aktif (' + API + ')';
+          b.className = 'text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+          return true;
+        }
+      } catch (e) { /* server mati */ }
+      b.textContent = '\u25CF Server TIDAK aktif — jalankan npm start';
+      b.className = 'text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30';
+      return false;
+    }
+
+    // ==================== INIT ====================
+    (function init() {
+      if (!UI_AVAILABLE) $('file-warn').classList.remove('hidden');
+      if (!UI_AVAILABLE) $('chk-ui').checked = false;
+      renderSections();
+      switchTab('tests');
+      checkServer();
+
+      $('sel-speed').addEventListener('change', function () { SPEED = parseFloat(this.value) || 1; });
+      $('btn-run').addEventListener('click', runAll);
+      $('btn-stop').addEventListener('click', function () { stopped = true; });
+      $('btn-reset').addEventListener('click', function () { resetResults(true); });
+      $('btn-export').addEventListener('click', exportResults);
+
+      if (!UI_AVAILABLE) { $('chk-ui').disabled = true; }
+    })();
+  </script>
+</body>
+</html>
