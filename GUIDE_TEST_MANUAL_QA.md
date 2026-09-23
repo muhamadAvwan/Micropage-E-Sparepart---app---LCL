@@ -118,8 +118,8 @@
 
 📦 SECTION 6: STOK (Data Stok & KPI) — 2 test
 
-**STOK-01: KPI ringkasan stok akurat** → total_item: 663, critical: 155, rendah: 284, habis: 140
-**STOK-02: Daftar sparepart lengkap** → 663 item, field lengkap
+**STOK-01: KPI ringkasan stok akurat** → total_item: 3022, critical: 210, rendah: 356, habis: 1887
+**STOK-02: Daftar sparepart lengkap** → 3022 item, field lengkap
 
 ---
 
@@ -156,10 +156,10 @@
 **UI-02: Buka BQ Monitoring** → Tabel + pagination + tombol Riwayat
 **UI-03: Pencarian di BQ Monitoring** → Filter hasil
 **UI-04: Monthly Report tampil** → Ringkasan + periode + chart
-**UI-05: Menu Teknisi (2 modul)** → BQ Personal, On Hand Stock, KPI total = 663
-**UI-06: On Hand Stock** → 663 item, cari bearing → menyusut
+**UI-05: Menu Teknisi (2 modul)** → BQ Personal, On Hand Stock, KPI total = 3022
+**UI-06: On Hand Stock** → 3022 item, cari bearing → menyusut
 **UI-07: Logout membersihkan sesi** → Kembali ke login, sessionStorage terhapus
-**UI-08: Kartu Critical Part** → Modal "Critical Part List", jumlah = 155
+**UI-08: Kartu Critical Part** → Modal "Critical Part List", jumlah = 210
 
 ---
 

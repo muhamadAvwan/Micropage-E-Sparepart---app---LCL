@@ -96,12 +96,12 @@ Catat jumlah awal (bagian 5) agar mudah membandingkan.
 | Data | Nilai |
 |---|---|
 | Total users | 18 (13 teknisi, 3 supervisor, 1 officer, 1 manager) |
-| Total spareparts | 663 |
-| Critical part (`is_critical=1`) | 155 |
-| Stok rendah (qty ≤ min, min>0) | 284 |
-| Stok habis (qty = 0) | 140 |
-| Total pengajuan BQ | 200 |
-| Approval SPV | Disetujui 188, Ditolak 10, Menunggu 2 |
+| Total spareparts | 3022 |
+| Critical part (`is_critical=1`) | 210 |
+| Stok rendah (qty ≤ min, min>0) | 356 |
+| Stok habis (qty = 0) | 1887 |
+| Total pengajuan BQ | 1481 |
+| Approval SPV | Disetujui 1104, Ditolak 265, Menunggu 112 |
 | Approval Manager | Disetujui 184, Menunggu 16 |
 | Status pengadaan | Tiba di Gudang 168, BQ Baru 14, Proses PO 11, Barang Dikirim 4, Pending 3 |
 | Periode tersedia | Jan 2025 – Sep 2026 (21 bulan) |
@@ -167,7 +167,7 @@ Screenshot bukti hasil uji ada di `tests/screenshots/`.
 
 | ID | P | Prasyarat | Langkah | Hasil Diharapkan |
 |---|---|---|---|---|
-| FORM-01 | P0 | Login teknisi | Klik **BQ Personal** | Form terbuka; dropdown Item Code berisi ±663 sparepart |
+| FORM-01 | P0 | Login teknisi | Klik **BQ Personal** | Form terbuka; dropdown Item Code berisi ±3022 sparepart |
 | FORM-02 | P0 | Form terbuka | Isi semua field lengkap & valid → KIRIM | Toast sukses + tampil nomor registrasi (format `BQ-YYYYMMDD-####`) |
 | FORM-03 | P0 | FORM-02 sukses | Buka BQ Monitoring (supervisor/manager) | Pengajuan baru muncul (terbaru di atas) dengan SPV=Menunggu, MGR=Menunggu, Pengadaan=BQ Baru |
 | FORM-04 | P0 | Form terbuka | Klik KIRIM tanpa pilih Item Code | Ditolak browser (field required), tidak terkirim |
@@ -223,11 +223,11 @@ Screenshot bukti hasil uji ada di `tests/screenshots/`.
 
 | ID | P | Prasyarat | Langkah | Hasil Diharapkan |
 |---|---|---|---|---|
-| STOK-01 | P0 | Login (semua role) | Lihat kartu KPI di dashboard | Total item **663**, Critical **155**, Stok Rendah **284**, Stok Habis **140** |
+| STOK-01 | P0 | Login (semua role) | Lihat kartu KPI di dashboard | Total item **3022**, Critical **210**, Stok Rendah **356**, Stok Habis **1887** |
 | STOK-02 | P0 | KPI tampil | Klik tiap kartu KPI | Modal stok terbuka dgn judul & isi sesuai mode (all/critical/low/out) |
 | STOK-03 | P0 | KPI tampil | Lihat panel "Perlu Segera Dipesan" | Menampilkan item defisit (qty < min) beserta nilai kekurangan |
-| STOK-04 | P0 | Login teknisi | Buka **On Hand Stock** | 663 item, pagination 25/halaman |
-| STOK-05 | P0 | Login supervisor/manager | Buka **Critical Part List** | Hanya item `is_critical` (≈155) |
+| STOK-04 | P0 | Login teknisi | Buka **On Hand Stock** | 3022 item, pagination 25/halaman |
+| STOK-05 | P0 | Login supervisor/manager | Buka **Critical Part List** | Hanya item `is_critical` (≈210) |
 | STOK-06 | P0 | Modal stok | Ketik `bearing` | ±9 hasil; jumlah dihitung ulang |
 | STOK-07 | P1 | Modal stok | Coba filter Kritis / Stok Rendah / Stok Habis | Jumlah baris berubah sesuai |
 | STOK-08 | P1 | Modal stok | Perhatikan Qty ≤ Min | Angka qty merah (penanda stok rendah) |

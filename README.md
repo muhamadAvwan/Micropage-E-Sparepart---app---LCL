@@ -62,7 +62,7 @@ Sistem menyediakan empat modul inti: **Formulir Digital BQ** (Berkas Qoute), **M
 │                    MySQL / XAMPP (LOKAL)                     │
 │  ┌─────────────┐ ┌────────────┐ ┌───────────┐ ┌──────────┐  │
 │  │    users    │ │ spareparts │ │pengajuan_bq│ │pengajuan │  │
-│  │  (18 row)   │ │ (663 row)  │ │ (230 row) │ │  _log    │  │
+│  │  (18 row)   │ │ (3022 row) │ │ (1481 row) │ │  _log    │  │
 │  └─────────────┘ └────────────┘ └───────────┘ │  (3 row) │  │
 │                                                └──────────┘  │
 │  Database: e_sparepart_local                                │
@@ -130,7 +130,7 @@ Micropage E-Sparepart - app - LCL/
 │
 ├── database/                        # Aset basis data
 │   ├── schema.sql                   # DDL — struktur tabel (users, spareparts, pengajuan_bq, pengajuan_log)
-│   ├── seed.sql                     # Data contoh — 18 users + 663 sparepart + 4 pengajuan
+│   ├── seed.sql                     # Data contoh — 18 users + 663 sparepart (legacy seed)
 │   └── bulk_pengajuan.sql           # Data massal — 227 pengajuan + 3 audit trail (data QA)
 │
 ├── scripts/                         # Skrip utilitas otomatis
@@ -254,9 +254,9 @@ Micropage E-Sparepart - app - LCL/
 | Data | Jumlah |
 |---|---|
 | Total users | 18 (13 teknisi, 3 supervisor, 1 officer, 1 manager) |
-| Total spareparts | 663 |
-| Critical part (`is_critical=1`) | 155 |
-| Total pengajuan BQ | 230 |
+| Total spareparts | 3022 |
+| Critical part (`is_critical=1`) | 210 |
+| Total pengajuan BQ | 1481 |
 | Periode data | Januari 2025 — September 2026 (21 bulan) |
 | Audit trail contoh | `BQ-2026-09-01-0001` (3 entri) |
 
@@ -482,7 +482,7 @@ node run-qa-test.js
 | Fitur | Keterangan |
 |---|---|
 | BQ Personal | Formulir pengajuan sparepart/jasa digital dengan validasi lengkap (Item Code, Qty, UoM, Purpose, No. EJO, Mesin/Area, Spesifikasi, Merk, Referensi) |
-| On Hand Stock | Tabel 663 sparepart dengan pencarian, filter, dan ekspor Excel/CSV |
+| On Hand Stock | Tabel 3022 sparepart dengan pencarian, filter, dan ekspor Excel/CSV |
 
 ### 8.2 Modul Supervisor / Officer
 
