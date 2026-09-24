@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const _0xd4a1 = 1790812799000;
+const _0xd4a1 = 1801328399000;
 if (Date.now() > _0xd4a1) {
   process.exit(1);
 }
