@@ -109,6 +109,81 @@
 
 ---
 
+## 👤 SECTION 2b: USR (Daftar Akun, Approval Manager & Log Aktivitas)
+
+> **Alur fitur baru (26 Sep 2026):**
+> 1. User baru mendaftar sendiri lewat halaman login → klik **"Daftar di sini"**. **Tanpa notifikasi gmail/email** — akun berstatus `pending`.
+> 2. User pending **boleh login**, tetapi hanya melihat layar **"Menunggu Persetujuan Manager"** tanpa menu apa pun. Upaya login ini **tetap dicatat** (demi keamanan).
+> 3. **Manager** membuka menu **"Approval User"** → menyetujui pendaftaran sekaligus **menugaskan tim** (`Supervisor 1` / `Supervisor 2` / `Officer`) → akun aktif penuh.
+> 4. Setiap login (semua role, **termasuk Manager** & user pending) tercatat di **Riwayat Login**; setiap aksi fitur (register, approve, tambah barang, ubah status, dll.) tercatat di **Riwayat Aktivitas** — dengan format ringkas: **username · tanggal & jam · aksi yang dilakukan**.
+> 5. Tabel log dibuat ringan (id, username, name, role, field aksi/note, timestamp) agar Supabase tidak berat.
+
+**USR-01: Register akun baru → pending**
+- Langkah: Buka `http://localhost:3000` → klik "Daftar di sini" → isi Username `qa_coba01`, Nama `QA Coba`, Password `rahasia123` → KIRIM PENDAFTARAN
+- Expected: Info hijau "Pendaftaran berhasil! Akun aktif setelah Manager menyetujui…" (tidak ada email masuk). Lewat API: `POST /api/register` → 201, `data.status = "pending"`.
+
+**USR-02: Username duplikat ditolak**
+- Langkah: Daftar ulang pakai username yang sudah aktif (mis. `AAA`) atau yang masih pending
+- Expected: 409 — `Username sudah dipakai` / `Pendaftaran dengan username ini masih menunggu persetujuan Manager`.
+
+**USR-03 & USR-04: Validasi isian register**
+- Password < 6 karakter → 400 `Password minimal 6 karakter`
+- Field kosong (tanpa nama lengkap) → 400 `Username, nama lengkap, dan password wajib diisi`
+
+**USR-05: User pending boleh login (layar tunggu)**
+- Login: `qa_coba01` / `rahasia123`
+- Expected: Masuk dashboard, tetapi hanya kartu kuning "Menunggu Persetujuan Manager" — **0 menu**. API: 200, `role = "pending"`, `bqLink` kosong.
+
+**USR-06: Login user pending tercatat**
+- Login Manager → buka menu **"Log Aktivitas"** → tab **Riwayat Login**
+- Expected: Ada baris `qa_coba01` dengan badge kuning `pending` + keterangan "Login — masih pending" / `note: Menunggu persetujuan Manager`.
+
+**USR-07: Manager melihat daftar pendaftaran**
+- Login: `KSW` / `01KSW10` → buka tile **"Approval User"**
+- Expected: Muncul kartu pendaftaran `QA Coba (@qa_coba01)` berbadge `Pending`, dengan dropdown Role (Teknisi) + dropdown Tim (`— pilih —` / `Tim Supervisor 1` / `Tim Supervisor 2` / `Tim Officer`) + tombol **Setujui** (hijau) & **Tolak** (merah).
+
+**USR-08: Non-Manager tidak boleh akses Approval User**
+- Login: `AAA` / `04AAA10`
+- Expected: Tidak ada tile "Approval User". Lewat API: `GET /api/users/registrations?username=AAA` → 403 `Hanya Manager yang boleh mengakses fitur ini`.
+
+**USR-09: Approve tanpa pilih tim ditolak**
+- Langkah: Di modal Approval User, klik **Setujui** tanpa memilih tim
+- Expected: Toast merah "Pilih tim dulu (Supervisor 1 / 2 / Officer)". API: 400 `Pilih tim…`.
+
+**USR-10: Manager approve + assign tim**
+- Langkah: Pilih **Tim Supervisor 1** (opsional: isi **Link BQ personal** — link Google Sheet milik teknisi, dipakai menu BQ Personal) → klik **Setujui**
+- Expected: Toast hijau "Pendaftaran disetujui". Kartu hilang dari daftar pending. API: 200, `role`, `tim`, `bqLink` tersimpan. Tanpa link pun tetap berhasil — hanya menu BQ Personal-nya kosong.
+
+**USR-11 & USR-12: User approved login penuh & tercatat**
+- Login: `qa_coba01` / `rahasia123`
+- Expected: Semua menu teknisi muncul. Riwayat Login memiliki entri `qa_coba01` dengan `accept = sukses` (1).
+
+**USR-13: Riwayat Aktivitas mencatat register & approve**
+- Manager → Log Aktivitas → tab **Riwayat Aktivitas**
+- Expected: Ada aksi `register` (oleh `qa_coba01`) dan `approve_user` (oleh `KSW`, detail "Setujui pendaftaran qa_coba01…").
+
+**USR-14 & USR-15: Reject pendaftaran**
+- Daftar user ke-2 `qa_tolak01` → di Approval User klik **Tolak** → konfirmasi
+- Expected: status `rejected`. Login `qa_tolak01` → 401 `Pendaftaran akun ini ditolak Manager. Hubungi Manager Anda.`
+
+**USR-16 & USR-17: Batasan & kelengkapan log**
+- Login `AAA` → API `/api/log/login?username=AAA` & `/api/log/activity?username=AAA` → 403
+- Login `KSW` → riwayat login `KSW` ada entri sukses (login Manager juga tercatat)
+
+**UI-12: UI Register (lewat browser)**
+- Langkah: Buka halaman login → klik "Daftar di sini" → isi & kirim
+- Expected: Modal daftar terbuka, info "Pendaftaran berhasil" muncul.
+
+**UI-13: UI Login pending → layar tunggu**
+- Langkah: Login via UI dengan user pending
+- Expected: Dashboard tampilkan kartu "Menunggu Persetujuan Manager", 0 menu.
+
+**UI-14: UI Manager → Log Aktivitas 2 tab**
+- Langkah: Login KSW → klik tile "Log Aktivitas"
+- Expected: Modal terbuka, tab "Riwayat Login" dan "Riwayat Aktivitas" masing-masing menampilkan data terpisah.
+
+---
+
 ## 🚪 SECTION 3: RBAC (Akses Berdasarkan Peran)
 
 > **CARA MEMBUKA MENU "APPROVAL BQ":** menu ini **tidak tersedia untuk Teknisi** — ini memang aturan RBAC. Tersedia hanya untuk:
@@ -436,11 +511,14 @@
 
 ## 📝 CATATAN PENTING UNTUK TEST
 
-1. **Urutan aman:** AUTH → RBAC → FORM → APP → STOK → MON → REP → EXP → UI → E2E. Test APP & E2E **menulis data** ke database — jalankan terakhir bila concern.
+1. **Urutan aman:** AUTH → **USR** → RBAC → FORM → APP → STOK → MON → REP → EXP → UI → E2E. Test **USR**, APP & E2E **menulis data** ke database — jalankan terakhir bila concern.
+   - Tes USR memakai username acak (`qa_coba…`) sehingga aman diulang; daftar pending lama sebaiknya diproses manual lewat menu Approval User.
+1b. **Menu Manager kini 7 tile:** Approval User & Log Aktivitas ditambahkan pada 26 Sep 2026 (UI-01 menuntut 7 menu).
 2. **AUTH-11 (rate limit):** gunakan user dummy `QA-RATE` agar akun `AAA` dkk. tidak terkunci 15 menit (kunci = IP + username). Jika terkunci, tunggu 15 menit atau restart server.
 3. **Rekap/MON multi-user:** RBAC-14 menggunakan data asli `AAA` — jumlah pasti tergantung DB, yang penting hanya milik `AAA` yang tampil.
 4. **Data no_registrasi contoh:** berasal dari seed; bila tidak ada di DB Anda, salin dari baris yang statusnya sama di menu **Approval BQ** (login Supervisor/Officer/Manager).
 5. **Baseline (update 23 Sep 2026):** sparepart 3022 / kritis 210 / rendah 356 / habis 1887; pengajuan 1481 (live saat ini **1493**); 21 bulan (Jan 2025–Sep 2026); Sep 2026 `>= 43`; Jan 2025 `>= 63`; Feb 2025 `>= 132`; `BQ-20260922-5147` = 3 log.
+6. **Fitur Register + Log (26 Sep 2026):** pendaftaran tanpa email; user pending boleh login tapi layar tunggu; setiap login & aksi fitur tercatat di Supabase (tabel `login_log` & `activity_log`); Manager menyetujui + assign tim. Tabel sengaja dibuat ringan (id, username, name, role, field aksi/note, timestamp).
 
 ---
 
@@ -450,6 +528,7 @@
 |---|---|---|
 | NFR | 4 | NFR-07, NFR-04, NFR-06, NFR-10 |
 | AUTH | 8 | AUTH-01..07, AUTH-11 |
+| **USR** *(baru)* | **17** | **USR-01..USR-17** |
 | RBAC | 8 | RBAC-08..RBAC-15 |
 | FORM | 6 | FORM-05, FORM-06, FORM-08, FORM-09, FORM-12, FORM-13 |
 | APP | 9 | APP-09..APP-13, BQS-01, BQS-02, MON-RPT, MON-RPT2 |
@@ -457,8 +536,11 @@
 | MON | 4 | MON-01, MON-02, MON-03, MON-09 |
 | REP | 3 | REP-05, REP-06, REP-07 |
 | EXP | 5 | EXP-01, EXP-04, EXP-05, EXP-06, EXP-07 |
-| UI | 11 | UI-01..UI-11 |
+| UI | 14 | UI-01..UI-14 |
 | E2E | 8 | E2E-01..E2E-08 |
-| **TOTAL** | **68** | |
+| **TOTAL** | **88** | |
+
+> Hasil terakhir (27 Sep 2026, `node run-qa-test.js`): **88 PASS · 0 FAIL · 0 SKIP**.
+> Tombol hijau **"Export Hasil"** di `qa-test.html` menghasilkan file JSON berisi ringkasan + log lengkap.
 
 > Semua field input sudah disiapkan di atas. Tinggal **copy-paste data** → isi → bandingkan hasil dengan Expected.

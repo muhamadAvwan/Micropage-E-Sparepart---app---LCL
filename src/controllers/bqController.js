@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { logActivity } = require('./userManagementController');
 
 function buildNoRegistrasi() {
   const d = new Date();
@@ -56,6 +57,12 @@ function buildNoRegistrasi() {
       return res.status(401).json({ status: 'error', message: 'User tidak ditemukan. Silakan login ulang.' });
     }
 
+    // Ambil nama & role untuk log aktivitas (dipakai semua role).
+    const [[who]] = await pool.execute(
+      'SELECT name, role FROM users WHERE id = ? LIMIT 1', [user.id]
+    );
+    const pelaku = who || { name: username, role: '-' };
+
     let sparepartItem = null;
     if (jenisV === 'sparepart') {
       if (!itemCode) {
@@ -85,6 +92,14 @@ function buildNoRegistrasi() {
       [noRegistrasi, user.id, sparepartItem, qtyN, uomV, spesifikasi,
        purposeV, noEjoV, areaV, merkV, refV,
        jenisV, urgencyV]
+    );
+
+    // Log aktivitas: buat pengajuan (aksi mengubah data).
+    await logActivity(
+      username, pelaku.name, pelaku.role, 'create_bq',
+      'Buat pengajuan ' + noRegistrasi + ' \u2014 ' + jenisV + ' ' + qtyN + ' ' + uomV +
+        ' (' + urgencyV + ')' + (sparepartItem ? ' item ' + sparepartItem : '') +
+        (noEjoV ? ' \u00b7 EJO ' + noEjoV : '')
     );
 
     return res.status(201).json({
@@ -396,6 +411,15 @@ async function updateStatusPengajuan(req, res) {
     } catch (logErr) {
       console.error('[BQ Log Warning]', logErr.message);
     }
+
+    // Log aktivitas: ubah status pengajuan (ringkas: field, dari, ke).
+    const statusDetail = changes.length
+      ? changes.map((c) => c[0] + ': ' + (c[1] || '-') + ' -> ' + c[2]).join('; ')
+      : 'Tidak ada perubahan';
+    await logActivity(
+      username, actor.name, actor.role, 'update_status',
+      'Ubah status ' + id + ' \u2014 ' + statusDetail
+    );
 
     return res.status(200).json({
       status: 'ok',

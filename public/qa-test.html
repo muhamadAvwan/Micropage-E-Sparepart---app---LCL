@@ -179,6 +179,7 @@
       REP:  '#9333ea',
       UI:   '#db2777',
       E2E:  '#b45309',
+      USR:  '#dc2626',
     };
     var PRIO_STYLE = {
       P0: 'background:#7f1d1d;color:#fecaca',
@@ -477,6 +478,146 @@
             }
           }
           t.check(codes.slice(0, 5).every(function (c) { return c === 401; }), '5 percobaan awal 401 -> [' + codes.join(', ') + ']');
+        } },
+
+      // ---------- USR: REGISTER + APPROVAL MANAGER + LOG ----------
+      { id: 'USR-01', group: 'USR', priority: 'P0', mode: 'write', title: 'Register akun baru -> pending', expected: 'POST /api/register lengkap -> 201; data.status "pending"; tanpa notifikasi email',
+        run: async function (t) {
+          RUN.usr = 'qa_' + Date.now().toString().slice(-8);
+          t.info('Username uji: ' + RUN.usr);
+          var r = await callApi(t, 'POST', '/api/register', { username: RUN.usr, name: 'QA Tester Otomatis', password: 'rahasia123' });
+          t.eq(r.status, 201, 'HTTP status');
+          t.eq(r.json.status, 'ok', 'status');
+          t.eq(r.json.data.status, 'pending', 'data.status');
+        } },
+      { id: 'USR-02', group: 'USR', priority: 'P0', mode: 'safe', title: 'Register username duplikat ditolak', expected: 'POST /api/register username sama -> 409 "Username sudah dipakai"',
+        run: async function (t) {
+          if (!RUN.usr) t.skip('USR-01 belum menghasilkan username uji.');
+          var r = await callApi(t, 'POST', '/api/register', { username: 'AAA', name: 'Duplikat', password: 'rahasia123' });
+          t.eq(r.status, 409, 'HTTP status');
+          t.check(/sudah dipakai/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+      { id: 'USR-03', group: 'USR', priority: 'P1', mode: 'safe', title: 'Register password pendek ditolak', expected: 'POST password 3 karakter -> 400 "Password minimal 6 karakter"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/register', { username: 'qa_pendek_x', name: 'QA Pendek', password: 'abc' });
+          t.eq(r.status, 400, 'HTTP status');
+          t.check(/minimal 6/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+      { id: 'USR-04', group: 'USR', priority: 'P1', mode: 'safe', title: 'Register field kosong ditolak', expected: 'POST tanpa name -> 400 "Username, nama lengkap, dan password wajib diisi"',
+        run: async function (t) {
+          var r = await callApi(t, 'POST', '/api/register', { username: 'qa_kosong_x', password: 'rahasia123' });
+          t.eq(r.status, 400, 'HTTP status');
+          t.check(/wajib diisi/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+      { id: 'USR-05', group: 'USR', priority: 'P0', mode: 'write', title: 'User pending BOLEH login (layar tunggu)', expected: 'POST /api/login user pending -> 200; role "pending"; bqLink kosong',
+        run: async function (t) {
+          if (!RUN.usr) t.skip('USR-01 belum menghasilkan username uji.');
+          var r = await callApi(t, 'POST', '/api/login', { username: RUN.usr, password: 'rahasia123' });
+          t.eq(r.status, 200, 'HTTP status');
+          t.eq(r.json.data.role, 'pending', 'role pending');
+          t.eq(r.json.data.bqLink, '', 'bqLink kosong (tanpa akses fitur)');
+        } },
+      { id: 'USR-06', group: 'USR', priority: 'P0', mode: 'write', title: 'Login user pending TERCATAT (accept=0)', expected: 'GET /api/log/login?filter=<user> (Manager) -> ada entri accept=0 + note "Menunggu persetujuan Manager"',
+        run: async function (t) {
+          if (!RUN.usr) t.skip('USR-01 belum menghasilkan username uji.');
+          var r = await callApi(t, 'GET', '/api/log/login?username=KSW&filter=' + encodeURIComponent(RUN.usr));
+          t.eq(r.status, 200, 'HTTP status');
+          var row = r.json.data.filter(function (x) { return x.username === RUN.usr; })[0];
+          t.check(!!row, 'entri login pending user ditemukan');
+          t.eq(Number(row.accept), 0, 'accept = 0 (belum disetujui)');
+          t.check(/persetujuan/i.test(row.note || ''), 'note: ' + row.note);
+        } },
+      { id: 'USR-07', group: 'USR', priority: 'P0', mode: 'write', title: 'Manager melihat daftar pendaftaran pending', expected: 'GET /api/users/registrations (KSW) -> 200; berisi username uji dengan status pending',
+        run: async function (t) {
+          if (!RUN.usr) t.skip('USR-01 belum menghasilkan username uji.');
+          var r = await callApi(t, 'GET', '/api/users/registrations?username=KSW&status=pending');
+          t.eq(r.status, 200, 'HTTP status');
+          var row = r.json.data.filter(function (x) { return x.username === RUN.usr; })[0];
+          t.check(!!row, 'pendaftaran uji ada di daftar pending');
+          t.eq(row.status, 'pending', 'status pending');
+          RUN.regId = row ? row.id : null;
+        } },
+      { id: 'USR-08', group: 'USR', priority: 'P1', mode: 'safe', title: 'Non-Manager tidak boleh lihat pendaftaran', expected: 'GET /api/users/registrations (AAA) -> 403 "Hanya Manager"',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/users/registrations?username=AAA');
+          t.eq(r.status, 403, 'HTTP status');
+          t.check(/hanya manager/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+      { id: 'USR-09', group: 'USR', priority: 'P0', mode: 'write', title: 'Approve tanpa pilih tim ditolak', expected: 'POST /api/users/approve tanpa tim -> 400 "Pilih tim"',
+        run: async function (t) {
+          if (!RUN.regId) t.skip('USR-07 belum menghasilkan id pendaftaran.');
+          var r = await callApi(t, 'POST', '/api/users/approve', { username: 'KSW', id: RUN.regId, role: 'teknisi', tim: '' });
+          t.eq(r.status, 400, 'HTTP status');
+          t.check(/pilih tim/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+      { id: 'USR-10', group: 'USR', priority: 'P0', mode: 'write', title: 'Manager approve + assign tim (Supervisor 1)', expected: 'POST /api/users/approve tim "Supervisor 1" -> 200; user aktif dengan role teknisi',
+        run: async function (t) {
+          if (!RUN.regId) t.skip('USR-07 belum menghasilkan id pendaftaran.');
+          var r = await callApi(t, 'POST', '/api/users/approve', { username: 'KSW', id: RUN.regId, role: 'teknisi', tim: 'Supervisor 1', bqLink: 'https://docs.google.com/spreadsheets/qa-test-bq' });
+          t.eq(r.status, 200, 'HTTP status');
+          t.eq(r.json.data.role, 'teknisi', 'role setelah approve');
+          t.eq(r.json.data.tim, 'supervisor 1', 'tim tersimpan');
+        } },
+      { id: 'USR-11', group: 'USR', priority: 'P0', mode: 'write', title: 'User approved bisa login penuh', expected: 'POST /api/login user uji -> 200; role "teknisi"; bqLink terisi',
+        run: async function (t) {
+          if (!RUN.usr) t.skip('USR-01 belum menghasilkan username uji.');
+          var r = await callApi(t, 'POST', '/api/login', { username: RUN.usr, password: 'rahasia123' });
+          t.eq(r.status, 200, 'HTTP status');
+          t.eq(r.json.data.role, 'teknisi', 'role teknisi');
+          t.check(!!r.json.data.bqLink, 'bqLink terisi (akses fitur penuh)');
+        } },
+      { id: 'USR-12', group: 'USR', priority: 'P1', mode: 'write', title: 'Login user approved tercatat (accept=1)', expected: 'GET /api/log/login?filter=<user> -> ada entri accept=1',
+        run: async function (t) {
+          if (!RUN.usr) t.skip('USR-01 belum menghasilkan username uji.');
+          var r = await callApi(t, 'GET', '/api/log/login?username=KSW&filter=' + encodeURIComponent(RUN.usr));
+          t.eq(r.status, 200, 'HTTP status');
+          var ok = r.json.data.some(function (x) { return x.username === RUN.usr && Number(x.accept) === 1; });
+          t.check(ok, 'entri login sukses (accept=1) ditemukan');
+        } },
+      { id: 'USR-13', group: 'USR', priority: 'P0', mode: 'write', title: 'Activity log mencatat register + approve', expected: 'GET /api/log/activity (KSW) -> ada aksi "register" (user uji) & "approve_user" (oleh KSW)',
+        run: async function (t) {
+          if (!RUN.usr) t.skip('USR-01 belum menghasilkan username uji.');
+          var r = await callApi(t, 'GET', '/api/log/activity?username=KSW&limit=500');
+          t.eq(r.status, 200, 'HTTP status');
+          var reg = r.json.data.filter(function (x) { return x.action === 'register' && x.username === RUN.usr; })[0];
+          var appr = r.json.data.filter(function (x) { return x.action === 'approve_user' && x.username === 'KSW'; })[0];
+          t.check(!!reg, 'aksi register tercatat');
+          t.check(!!appr, 'aksi approve_user oleh Manager tercatat');
+          t.check(appr && /setujui pendaftaran/i.test(appr.detail || ''), 'detail approve: ' + (appr ? appr.detail : '-'));
+        } },
+      { id: 'USR-14', group: 'USR', priority: 'P0', mode: 'write', title: 'Manager menolak pendaftaran lain', expected: 'Register user ke-2 lalu POST /api/users/reject -> 200; status "rejected"',
+        run: async function (t) {
+          RUN.usr2 = 'qa2_' + Date.now().toString().slice(-8);
+          var reg = await callApi(t, 'POST', '/api/register', { username: RUN.usr2, name: 'QA Tester Ditolak', password: 'rahasia123' });
+          t.eq(reg.status, 201, 'register user ke-2');
+          var list = await callApi(t, 'GET', '/api/users/registrations?username=KSW&status=pending');
+          var row = list.json.data.filter(function (x) { return x.username === RUN.usr2; })[0];
+          t.check(!!row, 'pendaftaran ke-2 muncul di daftar pending');
+          var r = await callApi(t, 'POST', '/api/users/reject', { username: 'KSW', id: row.id, reason: 'QA: akun uji' });
+          t.eq(r.status, 200, 'HTTP status reject');
+          t.eq(r.json.data.status, 'rejected', 'status rejected');
+          RUN.regId2 = row.id;
+        } },
+      { id: 'USR-15', group: 'USR', priority: 'P0', mode: 'write', title: 'User ditolak TIDAK bisa login', expected: 'POST /api/login user rejected -> 401 "Pendaftaran akun ini ditolak Manager"',
+        run: async function (t) {
+          if (!RUN.usr2) t.skip('USR-14 belum menghasilkan username uji.');
+          var r = await callApi(t, 'POST', '/api/login', { username: RUN.usr2, password: 'rahasia123' });
+          t.eq(r.status, 401, 'HTTP status');
+          t.check(/ditolak manager/i.test(r.json.message), 'message: ' + r.json.message);
+        } },
+      { id: 'USR-16', group: 'USR', priority: 'P1', mode: 'safe', title: 'Non-Manager tidak boleh lihat log', expected: 'GET /api/log/login & /api/log/activity (AAA) -> 403',
+        run: async function (t) {
+          var r1 = await callApi(t, 'GET', '/api/log/login?username=AAA');
+          t.eq(r1.status, 403, 'log login ditolak');
+          var r2 = await callApi(t, 'GET', '/api/log/activity?username=AAA');
+          t.eq(r2.status, 403, 'log activity ditolak');
+        } },
+      { id: 'USR-17', group: 'USR', priority: 'P1', mode: 'write', title: 'Log login manager juga tercatat', expected: 'GET /api/log/login?filter=KSW -> ada entri KSW accept=1 (login QA tadi tercatat)',
+        run: async function (t) {
+          var r = await callApi(t, 'GET', '/api/log/login?username=KSW&filter=KSW');
+          t.eq(r.status, 200, 'HTTP status');
+          var ok = r.json.data.some(function (x) { return x.username === 'KSW' && Number(x.accept) === 1; });
+          t.check(ok, 'login Manager tercatat di riwayat');
         } },
 
       // ---------- RBAC ----------
@@ -833,11 +974,11 @@
          } },
 
       // ---------- UI (preview iframe) ----------
-      { id: 'UI-01', group: 'UI', priority: 'P0', mode: 'ui', title: 'Menu Manager (5 modul)', expected: 'Login KSW -> dashboard tampil, 5 menu: On Hand Stock, Monthly Report, BQ Summary, Approval BQ Urgent, Critical Part List, role=manager',
+      { id: 'UI-01', group: 'UI', priority: 'P0', mode: 'ui', title: 'Menu Manager (7 modul)', expected: 'Login KSW -> dashboard tampil, 7 menu: On Hand Stock, Monthly Report, BQ Summary, Approval BQ Urgent, Critical Part List, Approval User, Log Aktivitas; role=manager',
         run: async function (t) {
            await uiLoginAs('manager', t);
            var cards = Array.prototype.slice.call(fDoc().querySelectorAll('#menu-grid [data-action]'));
-           t.eq(cards.length, 5, 'jumlah menu manager');
+           t.eq(cards.length, 7, 'jumlah menu manager');
            var titles = cards.map(function (b) { return b.querySelector('h3').textContent.trim(); });
            t.info('Menu: ' + titles.join(' | '));
            t.check(titles.indexOf('On Hand Stock') >= 0, 'menu "On Hand Stock" ada');
@@ -845,6 +986,8 @@
            t.check(titles.indexOf('BQ Summary') >= 0, 'menu "BQ Summary" ada');
            t.check(titles.indexOf('Approval BQ Urgent') >= 0, 'menu "Approval BQ Urgent" ada');
            t.check(titles.indexOf('Critical Part List') >= 0, 'menu "Critical Part List" ada');
+           t.check(titles.indexOf('Approval User') >= 0, 'menu "Approval User" ada');
+           t.check(titles.indexOf('Log Aktivitas') >= 0, 'menu "Log Aktivitas" ada');
            t.check(/manager/i.test(fDoc().getElementById('badge-role').textContent), 'badge role manager tampil');
          } },
       { id: 'UI-02', group: 'UI', priority: 'P0', mode: 'ui', title: 'Buka BQ Monitoring (tabel + pagination)', expected: 'Modal terbuka, count terisi, <=25 baris/halaman, pagination "Menampilkan a-b dari N", tombol Riwayat ada',
@@ -992,6 +1135,79 @@
           }, 12000);
           t.check(loaded, 'BQ Summary terisi dengan data');
         } },
+      { id: 'UI-12', group: 'UI', priority: 'P0', mode: 'ui', title: 'UI Register: modal daftar akun', expected: 'Klik "Daftar di sini" -> modal terbuka; isi form -> kirim -> info "Pendaftaran berhasil" muncul',
+        run: async function (t) {
+          await uiReload();
+          t.step('Klik link "Daftar di sini" di halaman login');
+          flash('#link-register');
+          await pause(300);
+          fDoc().getElementById('link-register').click();
+          await pause(300);
+          var modal = fDoc().getElementById('modal-register');
+          t.check(modal && !modal.classList.contains('hidden'), 'modal register terbuka');
+          var uname = 'qa_ui_' + Date.now().toString().slice(-6);
+          RUN.usrUi = uname;
+          setInput('#reg-username', uname);
+          await pause(200);
+          setInput('#reg-name', 'QA UI Tester');
+          await pause(200);
+          setInput('#reg-pass', 'rahasia123');
+          await pause(200);
+          flash('#btn-register');
+          await pause(200);
+          fDoc().getElementById('btn-register').click();
+          var ok = await waitFor(function () {
+            var info = fDoc().getElementById('reg-info');
+            return info && !info.classList.contains('hidden') && /berhasil/i.test(info.textContent);
+          }, 8000);
+          t.check(ok, 'info "Pendaftaran berhasil" tampil (tanpa notifikasi email)');
+          fDoc().getElementById('modal-register').classList.add('hidden');
+        } },
+      { id: 'UI-13', group: 'UI', priority: 'P0', mode: 'ui', title: 'UI Login user pending -> layar tunggu', expected: 'Login via UI dengan user pending -> dashboard menampilkan "Menunggu Persetujuan Manager" tanpa menu',
+        run: async function (t) {
+          if (!RUN.usrUi) t.skip('UI-12 belum membuat user pending.');
+          t.step('Login UI sebagai user pending ' + RUN.usrUi);
+          await uiReload();
+          setInput('#inp-user', RUN.usrUi);
+          await pause(200);
+          setInput('#inp-pass', 'rahasia123');
+          await pause(200);
+          fDoc().getElementById('btn-login').click();
+          var ok = await waitFor(function () {
+            var d = fDoc().getElementById('dash-section');
+            return d && !d.classList.contains('hidden');
+          }, 10000);
+          t.check(ok, 'dashboard terbuka');
+          var grid = fDoc().getElementById('menu-grid').textContent;
+          t.check(/menunggu persetujuan manager/i.test(grid), 'layar tunggu "Menunggu Persetujuan Manager" tampil');
+          var menus = fDoc().querySelectorAll('#menu-grid [data-action]').length;
+          t.eq(menus, 0, 'tidak ada menu untuk user pending');
+        } },
+      { id: 'UI-14', group: 'UI', priority: 'P0', mode: 'ui', title: 'UI Manager: modal Log Aktivitas 2 tab', expected: 'Klik menu Log Aktivitas -> modal terbuka; tab Riwayat Login & Riwayat Aktivitas menampilkan data',
+        run: async function (t) {
+          await uiLoginAs('manager', t);
+          await clickMenu('logactivity');
+          var ok = await waitFor(function () {
+            var m = fDoc().getElementById('modal-logactivity');
+            return m && !m.classList.contains('hidden');
+          }, 8000);
+          t.check(ok, 'modal Log Aktivitas terbuka');
+          var loaded = await waitFor(function () {
+            var l = fDoc().getElementById('log-list');
+            return l && l.children.length > 0 && /login sukses|pending/i.test(l.textContent);
+          }, 12000);
+          t.check(loaded, 'tab Riwayat Login menampilkan data');
+          flash('#tab-log-activity');
+          await pause(300);
+          fDoc().getElementById('tab-log-activity').click();
+          var loaded2 = await waitFor(function () {
+            var l = fDoc().getElementById('log-list');
+            return l && l.children.length > 0 && !/memuat/i.test(l.textContent);
+          }, 12000);
+          t.check(loaded2, 'tab Riwayat Aktivitas menampilkan data');
+          var body = fDoc().getElementById('log-list').textContent;
+          t.check(/register|approve_user|create_bq|update_status/i.test(body), 'ada aksi fitur tercatat (register/approve/dll)');
+        } },
 
       // ---------- E2E (menulis data) ----------
       { id: 'E2E-01', group: 'E2E', priority: 'P0', mode: 'write', title: 'Teknisi membuat pengajuan BQ', expected: 'POST /api/pengajuan lengkap -> 201 + no_registrasi',
@@ -1083,23 +1299,25 @@
         long: 'Mengecek server hidup, alamat/endpoint benar, dan file halaman aplikasi benar-benar terkirim (tidak kosong). Ini fondasi: kalau bagian ini gagal, hampir semua tes lain pasti ikut gagal.' },
       { group: 'AUTH', num: '1', title: 'Masuk & Keluar (Login)', short: 'Memeriksa siapa saja yang boleh masuk ke aplikasi.',
         long: 'Menguji fitur login: akun benar, akun salah, password salah, dan batas percobaan (rate limit) supaya akun tidak bisa ditebak paksa.' },
-      { group: 'RBAC', num: '2', title: 'Hak Akses per Peran', short: 'Tiap orang hanya bisa mengerjakan tugasnya sendiri.',
+      { group: 'USR', num: '2', title: 'Daftar Akun, Approval Manager & Log', short: 'Alur pendaftaran akun baru sampai disetujui Manager, plus riwayat login & aktivitas.',
+        long: 'User baru mendaftar sendiri (tanpa notifikasi email), menunggu persetujuan Manager yang sekaligus menugaskan tim (Supervisor 1 / Supervisor 2 / Officer). User pending boleh login tapi hanya melihat layar tunggu — upaya loginnya tetap dicatat demi keamanan. Setiap login (semua role, termasuk Manager) tercatat di riwayat login, dan setiap aksi fitur (register, approve, tambah barang, ubah status) tercatat di riwayat aktivitas dengan format ringkas: username, tanggal & jam, dan apa yang dilakukan.' },
+      { group: 'RBAC', num: '3', title: 'Hak Akses per Peran', short: 'Tiap orang hanya bisa mengerjakan tugasnya sendiri.',
         long: 'Role-Based Access Control: teknisi tidak boleh menyetujui, supervisor tidak boleh menyetujui level manager, officer hanya mengubah status pengadaan, dan manager hanya bisa menyetujui setelah supervisor menyetujui.' },
-      { group: 'FORM', num: '3', title: 'Form Pengajuan Barang', short: 'Form isian tidak bisa diisi asal-asalan.',
+      { group: 'FORM', num: '4', title: 'Form Pengajuan Barang', short: 'Form isian tidak bisa diisi asal-asalan.',
         long: 'Memastikan data wajib terisi, jumlah tidak boleh nol atau pecahan, kode barang harus benar-benar ada di database, dan field pelengkap tidak boleh kosong.' },
-      { group: 'APP', num: '4', title: 'Persetujuan & Perubahan Status', short: 'Tombol setuju/tolak dan ubah status punya aturan.',
+      { group: 'APP', num: '5', title: 'Persetujuan & Perubahan Status', short: 'Tombol setuju/tolak dan ubah status punya aturan.',
         long: 'Menguji validasi nilai persetujuan dan status pengadaan: nilai yang tidak dikenal harus ditolak, dan permintaan tanpa status harus ditolak.' },
-      { group: 'STOK', num: '5', title: 'Data Stok & Ringkasan KPI', short: 'Angka stok di dasbor harus benar.',
+      { group: 'STOK', num: '6', title: 'Data Stok & Ringkasan KPI', short: 'Angka stok di dasbor harus benar.',
         long: 'Memverifikasi KPI ringkasan (total, critical, stok rendah, stok habis) dan daftar sparepart lengkap beserta field pentingnya sesuai data master.' },
-      { group: 'MON', num: '6', title: 'Pantau Pengajuan (Monitoring)', short: 'Semua pengajuan bisa dilihat dan ada catatan riwayatnya.',
+      { group: 'MON', num: '7', title: 'Pantau Pengajuan (Monitoring)', short: 'Semua pengajuan bisa dilihat dan ada catatan riwayatnya.',
         long: 'Memastikan halaman monitoring memuat seluruh pengajuan dengan kolom lengkap, dan audit trail mencatat setiap perubahan status beserta pelakunya.' },
-      { group: 'REP', num: '7', title: 'Laporan Bulanan', short: 'Rekap per bulan bisa dipilih dan isinya benar.',
+      { group: 'REP', num: '8', title: 'Laporan Bulanan', short: 'Rekap per bulan bisa dipilih dan isinya benar.',
         long: 'Memverifikasi filter periode laporan tersedia serta jumlah pengajuan per bulan (Sep 2026, Jan & Feb 2025) sesuai data hasil impor.' },
-      { group: 'EXP', num: '8', title: 'Ekspor Excel', short: 'Tombol unduh menghasilkan file Excel yang bisa dibuka.',
+      { group: 'EXP', num: '9', title: 'Ekspor Excel', short: 'Tombol unduh menghasilkan file Excel yang bisa dibuka.',
         long: 'Menguji endpoint ekspor .xlsx: file valid, permintaan tanpa data ditolak, dan batas ukuran data dijaga agar server tidak berat.' },
-      { group: 'UI', num: '9', title: 'Uji Tampilan Aplikasi', short: 'Mengecek tampilan depan seperti yang dilihat pengguna asli.',
+      { group: 'UI', num: '10', title: 'Uji Tampilan Aplikasi', short: 'Mengecek tampilan depan seperti yang dilihat pengguna asli.',
         long: 'Menjalankan aplikasi di panel preview seperti manusia: login, membuka menu, mencari, membuka modal, dan logout. Bagian ini yang membuat preview bergerak.' },
-      { group: 'E2E', num: '10', title: 'Alur Lengkap: Buat sampai Setuju', short: 'Satu pengajuan dijalankan dari dibuat sampai disetujui penuh.',
+      { group: 'E2E', num: '11', title: 'Alur Lengkap: Buat sampai Setuju', short: 'Satu pengajuan dijalankan dari dibuat sampai disetujui penuh.',
         long: 'Menjalankan alur nyata (menulis ke database): teknisi membuat pengajuan, supervisor & manager menyetujui, officer mengubah status pengadaan, lalu mengecek riwayat. WAJIB berurutan E2E-01 s.d. E2E-08.' },
     ];
 
@@ -1116,6 +1334,26 @@
       'AUTH-06': { short: 'Masuk pakai nama akun tak ada harus ditolak tanpa bocor info.', long: 'Username tak terdaftar harus 401 dengan pesan yang sama seperti password salah, supaya penyerang tidak bisa menebak akun mana yang ada.' },
       'AUTH-07': { short: 'Masuk tanpa menulis apa pun harus ditolak.', long: 'Body login kosong harus 400 dengan pesan "Parameter username dan password wajib diisi".' },
       'AUTH-11': { short: 'Gagal masuk berulang kali harus dilock sementara.', long: 'Setelah 5 kali gagal dari IP+username yang sama, permintaan ke-6 harus 429 (terkunci 15 menit) untuk mencegah tebak password.' },
+      'USR-01': { short: 'User baru mendaftar tanpa notifikasi email.', long: 'POST /api/register menyimpan akun berstatus "pending". Tidak ada notifikasi gmail — akun aktif setelah Manager menyetujui & menugaskan tim.' },
+      'USR-02': { short: 'Username yang sudah dipakai ditolak.', long: 'Mendaftar dengan username yang sudah aktif di tabel users harus 409 "Username sudah dipakai".' },
+      'USR-03': { short: 'Password terlalu pendek ditolak.', long: 'Password < 6 karakter harus 400 "Password minimal 6 karakter".' },
+      'USR-04': { short: 'Field wajib tidak boleh kosong.', long: 'Registrasi tanpa nama lengkap harus 400 "Username, nama lengkap, dan password wajib diisi".' },
+      'USR-05': { short: 'User pending boleh login, tapi layar tunggu.', long: 'Login user pending harus 200 dengan role "pending" dan bqLink kosong — tanpa akses fitur apa pun, untuk keamanan dan pelacakan.' },
+      'USR-06': { short: 'Login user pending tercatat di riwayat login.', long: 'GET /api/log/login?filter=<user> (Manager) harus menemukan entri accept=0 dengan note "Menunggu persetujuan Manager".' },
+      'USR-07': { short: 'Manager melihat daftar pendaftaran menunggu.', long: 'GET /api/users/registrations (KSW) harus 200 dan berisi username uji dengan status pending.' },
+      'USR-08': { short: 'Hanya Manager yang boleh melihat pendaftaran.', long: 'GET /api/users/registrations sebagai teknisi (AAA) harus 403 "Hanya Manager".' },
+      'USR-09': { short: 'Approve tanpa pilih tim ditolak.', long: 'POST /api/users/approve tanpa tim harus 400 "Pilih tim" — manager wajib mengassign Supervisor 1/2/Officer.' },
+      'USR-10': { short: 'Manager menyetujui & menugaskan tim.', long: 'POST /api/users/approve dengan tim "Supervisor 1" harus 200; akun aktif dengan role teknisi & tim tersimpan.' },
+      'USR-11': { short: 'User approved bisa login penuh.', long: 'Setelah disetujui, login user uji harus 200 dengan role "teknisi" dan bqLink terisi (akses fitur penuh).' },
+      'USR-12': { short: 'Login user approved tercatat (accept=1).', long: 'GET /api/log/login?filter=<user> harus memiliki entri accept=1 menandakan login sukses user yang sudah aktif.' },
+      'USR-13': { short: 'Aksi register & approve masuk riwayat aktivitas.', long: 'GET /api/log/activity harus mencatat aksi "register" (user uji) dan "approve_user" (oleh Manager) — setiap fitur yang dilakukan punya log.' },
+      'USR-14': { short: 'Manager bisa menolak pendaftaran.', long: 'Register user ke-2 lalu POST /api/users/reject harus 200 dengan status "rejected".' },
+      'USR-15': { short: 'User ditolak tidak bisa login.', long: 'Login user yang direject harus 401 "Pendaftaran akun ini ditolak Manager".' },
+      'USR-16': { short: 'Non-Manager tidak boleh lihat log.', long: 'GET /api/log/login dan /api/log/activity sebagai teknisi (AAA) harus 403.' },
+      'USR-17': { short: 'Login Manager juga tercatat.', long: 'Riwayat login untuk KSW harus berisi entri accept=1 — tidak ada pengecualian, termasuk Manager masuk ke log.' },
+      'UI-12': { short: 'Halaman daftar akun bisa dipakai lewat UI.', long: 'Klik "Daftar di sini" di login, isi form, kirim — harus muncul info "Pendaftaran berhasil" tanpa notifikasi email.' },
+      'UI-13': { short: 'User pending melihat layar tunggu.', long: 'Login UI sebagai user pending — dashboard menampilkan "Menunggu Persetujuan Manager" dan tidak ada menu.' },
+      'UI-14': { short: 'Manager bisa lihat log login & aktivitas.', long: 'Klik menu Log Aktivitas — modal terbuka dengan 2 tab terpisah: Riwayat Login dan Riwayat Aktivitas, keduanya menampilkan data.' },
       'RBAC-08': { short: 'Teknisi tidak boleh menyetujui pengajuan.', long: 'Teknisi yang mencoba mengubah status approval harus ditolak (403), karena approval bukan tugasnya.' },
       'RBAC-09': { short: 'Supervisor tidak boleh menggantikan tugas manager.', long: 'Supervisor tidak boleh mengubah status_approval_manager; harus ditolak.' },
       'RBAC-10': { short: 'Officer tidak boleh menyetujui/ubah approval.', long: 'Officer hanya mengelola status pengadaan, jadi perubahan approval harus ditolak.' },
@@ -1172,6 +1410,16 @@
 
     // Prasyarat antar-tes: bila tes ini dijalankan duluan, prasyaratnya dijalankan otomatis.
     var DEPS = {
+      'USR-05': ['USR-01'],
+      'USR-06': ['USR-01', 'USR-05'],
+      'USR-07': ['USR-01'],
+      'USR-09': ['USR-07'],
+      'USR-10': ['USR-07'],
+      'USR-11': ['USR-10'],
+      'USR-12': ['USR-11'],
+      'USR-13': ['USR-10'],
+      'USR-15': ['USR-14'],
+      'UI-13': ['UI-12'],
       'E2E-02': ['E2E-01'],
       'E2E-03': ['E2E-01'],
       'E2E-04': ['E2E-01'],

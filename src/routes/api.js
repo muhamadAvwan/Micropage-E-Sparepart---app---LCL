@@ -11,6 +11,14 @@
     getMonthlyReport,
   } = require('../controllers/bqController');
   const { exportXlsx } = require('../controllers/exportController');
+  const {
+    registerUser,
+    listRegistrations,
+    approveUser,
+    rejectUser,
+    getLoginLog,
+    getActivityLog,
+  } = require('../controllers/userManagementController');
 
   const router = express.Router();
 
@@ -32,5 +40,13 @@
 
 // ---- Export Excel (.xlsx) ----
 router.post('/export/xlsx', exportXlsx);
+
+// ---- Modul Manajemen User & Log (register -> approval Manager) ----
+router.post('/register', registerUser);                       // daftar akun baru
+router.get('/users/registrations', listRegistrations);        // daftar pending (Manager)
+router.post('/users/approve', approveUser);                   // setujui + assign tim (Manager)
+router.post('/users/reject', rejectUser);                     // tolak pendaftaran (Manager)
+router.get('/log/login', getLoginLog);                        // riwayat login (Manager)
+router.get('/log/activity', getActivityLog);                  // riwayat aktivitas (Manager)
 
 module.exports = router;

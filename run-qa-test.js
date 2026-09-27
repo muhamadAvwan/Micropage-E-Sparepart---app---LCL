@@ -88,7 +88,7 @@ function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
     results.details.forEach(d => {
       if (!groups[d.id]) groups[d.id] = d;
     });
-    const sectionMap = { NFR:0, AUTH:1, RBAC:2, FORM:3, APP:4, STOK:5, MON:6, REP:7, EXP:8, UI:9, E2E:10 };
+    const sectionMap = { NFR:0, AUTH:1, USR:2, RBAC:3, FORM:4, APP:5, STOK:6, MON:7, REP:8, EXP:9, UI:10, E2E:11 };
     const sections = {};
     results.details.forEach(d => {
       if (!sections[d.group]) sections[d.group] = { total:0, pass:0, fail:0, skip:0 };
