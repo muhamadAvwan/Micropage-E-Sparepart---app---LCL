@@ -2550,7 +2550,9 @@
         { sel: '#btn-logout', title: 'Logout', desc: 'Selesai? Logout ya biar akun aman.' },
       ],
       'manager': [
-        { sel: '#greet-title', title: 'Selamat Datang, Pak Manager!', desc: 'Dashboard ini menampilkan ringkasan seluruh aktivitas sparepart. Kamu bisa approve, pantau laporan, dan cek stok.' },
+        { sel: '#greet-title', title: 'Selamat Datang, Pak Manager!', desc: 'Dashboard ini menampilkan ringkasan seluruh aktivitas sparepart. Kamu bisa approve, pantau laporan, cek stok, dan kelola user baru.' },
+        { sel: '[data-action="usermgmt"]', title: 'Approval User (Baru!)', desc: 'Pendaftaran akun baru masuk ke sini. Setujui sekaligus tugaskan tim: Supervisor 1, Supervisor 2, atau Officer. Bisa isi link BQ personal juga.' },
+        { sel: '[data-action="logactivity"]', title: 'Log Aktivitas (Baru!)', desc: 'Riwayat login & aktivitas SEMUA user — termasuk akun pending yang coba masuk. Dua tab terpisah: Riwayat Login dan Riwayat Aktivitas.' },
         { sel: '[data-action="stok"]', title: 'On Hand Stock', desc: 'Lihat stok semua sparepart secara real-time. Filter berdasarkan kategori atau kata kunci.' },
         { sel: '[data-action="report"]', title: 'Monthly Report', desc: 'Laporan bulanan pengajuan barang. Bisa export ke Excel untuk presentasi.' },
         { sel: '[data-action="bqsummary"]', title: 'BQ Summary', desc: 'Ringkasan seluruh pengajuan BQ. Berapa yang menunggu, disetujui, atau sudah selesai.' },
@@ -2560,7 +2562,7 @@
       ],
     };
 
-    function tourKey(role) { return 'tour_done_' + (role || '').toLowerCase(); }
+    function tourKey(role) { return 'tour_done_v2_' + (role || '').toLowerCase(); }
 
     function startTour() {
       if (!user) return;
