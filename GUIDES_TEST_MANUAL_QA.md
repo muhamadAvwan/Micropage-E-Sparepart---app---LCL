@@ -1,8 +1,8 @@
 ﻿# GUIDES TEST MANUAL QA - Fonko Gemini
 
-> **Total Test: 68** (NFR: 4, AUTH: 8, RBAC: 8, FORM: 6, APP: 9, STOK: 2, MON: 4, REP: 3, EXP: 5, UI: 11, E2E: 8)
+> **Total Test: 92** (NFR: 4, AUTH: 8, USR: 17, RBAC: 8, FORM: 6, APP: 9, STOK: 2, MON: 4, REP: 3, EXP: 5, UI: 18, E2E: 8)
 >
-> **Terakhir diperbarui:** 23 September 2026
+> **Terakhir diperbarui:** 28 September 2026
 >
 > **Tips kemudahan:** Semua data yang dibutuhkan (username, password, itemCode, `no_registrasi`, dst.) **sudah dicantumkan langsung di catatan ini** — cukup **copy-paste** dari tabel/data di bawah, TANPA perlu mengambil data dari API.
 
@@ -181,6 +181,30 @@
 **UI-14: UI Manager → Log Aktivitas 2 tab**
 - Langkah: Login KSW → klik tile "Log Aktivitas"
 - Expected: Modal terbuka, tab "Riwayat Login" dan "Riwayat Aktivitas" masing-masing menampilkan data terpisah.
+
+**UI-15: Tour panduan onboarding muncul sekali per peran**
+- Langkah: F12 → tab Console → jalankan `localStorage.removeItem('tour_done_v2_manager')` → refresh halaman → Login: `KSW` / `01KSW10`
+- Expected: overlay gelap + kartu panduan muncul, memuat **judul**, hitungan langkah `1 / 9`, titik-titik progress, spotlight biru yang mengikuti elemen yang dijelaskan, serta tombol **Lewati** dan **Lanjut**.
+- Expected khusus Manager: urutan langkah menyertakan kartu **"Approval User"** dan **"Log Aktivitas"** (2 tile baru); tombol terakhir berubah menjadi **"Mengerti!"**.
+- Expected: klik **Lewati** atau **Mengerti!** → overlay hilang dan tersimpan flag `tour_done_v2_manager = "1"` di localStorage, sehingga **tidak muncul lagi** pada login berikutnya.
+- **Catatan:** tour berjalan **per role** (`tour_done_v2_<role>`). Untuk mengulang tes, hapus flag-nya sesuai peran yang diuji (`teknisi`, `supervisor`, `officer`, `manager`).
+
+**UI-16: `?tour=off` mematikan panduan (mode demo/perekaman)**
+- Langkah: F12 → Console → `localStorage.removeItem('tour_done_v2_teknisi')` → buka `http://localhost:3000/?tour=off` → Login: `AAA` / `04AAA10`
+- Expected: panduan **tidak muncul** sama sekali walau flag belum tersimpan (aplikasi langsung menampilkan dashboard). Tanpa `?tour=off` pada kondisi yang sama, panduan akan muncul — jadi ini pembeda yang jelas.
+- Expected tambahan: dengan `?tour=off`, flag `tour_done_v2_teknisi` **tidak ikut tersimpan**; buka ulang tanpa parameter → panduan muncul kembali.
+
+**UI-17: Favicon wrench tampil di tab browser (baru, 28 Sep 2026)**
+- Langkah: Buka `http://localhost:3000` di tab baru (boleh lewat menu langsung ke aplikasi)
+- Expected: ikon **kunci pas (wrench) biru** tampil di **tab browser** (bukan ikon globe/default). Ikon ini juga ikut muncul bila halaman di-bookmark atau di-pin.
+- Expected tambahan: buka file `public/favicon.svg` lewat browser → gambar kotak biru berisi wrench putih tampil (bukan error XML/404).
+
+**UI-18: "Ingat saya" menjaga sesi tetap aktif**
+- Login: `AAA` / `04AAA10` → **centang "Ingat saya"** → klik MASUK
+- Langkah: tutup tab, lalu buka tab baru ke `http://localhost:3000`
+- Expected: **langsung masuk dashboard** tanpa diminta login ulang (tersimpan di `localStorage.user_remember`).
+- Kontras (tanpa centang): ulangi login `AAA` **tanpa** mencentang → tutup & buka tab baru → harus **kembali ke halaman login** (session pakai `sessionStorage`, hilang saat tab ditutup).
+- Expected tambahan: klik tombol **Logout** → `user_remember` dihapus → buka ulang aplikasi harus login dari awal (ini perilaku normal `clearSession()`, bukan bug).
 
 ---
 
@@ -427,7 +451,9 @@
 
 **UI-03: Navigasi menu lengkap sesuai peran**
 - Login: `AAA` / `04AAA10`
-- Expected: dashboard Teknisi memuat tile: **BQ Personal**, **On Hand Stock**, **BQ Summary** — dan **tidak ada** tile "Approval BQ". (Role Supervisor/Officer/Manager menambah tile **Approval BQ Tahap Supervisor** / **Approval BQ Urgent**, **Critical Part List**, **Monthly Report**, **PR Summary** sesuai role)
+- Expected: dashboard Teknisi memuat tile: **BQ Personal**, **On Hand Stock**, **BQ Summary** — dan **tidak ada** tile "Approval BQ". (Role Supervisor/Officer/Manager menambah tile **Approval BQ Tahap Supervisor** / **Approval BQ Urgent**, **Critical Part**, **Monthly Report**, **PR Summary** sesuai role)
+- Expected tambahan (update 26 Sep 2026): login `KSW` / `01KSW10` → dashboard Manager memuat **7 tile**: **Approval User**, **Log Aktivitas**, **BQ Summary**, **Approval BQ**, **Critical Part**, **On Hand Stock**, **Monthly Report** — **tanpa** tile "BQ Personal".
+- Expected tambahan: login `ANS` / `ANS1805` (Officer) → **tidak ada** tile "Approval User" & "Log Aktivitas" (khusus Manager).
 
 **UI-04: Search monitoring berfungsi**
 - Login: `KAA` / `KAA1910` → buka **Approval BQ Tahap Supervisor**
@@ -513,7 +539,7 @@
 
 1. **Urutan aman:** AUTH → **USR** → RBAC → FORM → APP → STOK → MON → REP → EXP → UI → E2E. Test **USR**, APP & E2E **menulis data** ke database — jalankan terakhir bila concern.
    - Tes USR memakai username acak (`qa_coba…`) sehingga aman diulang; daftar pending lama sebaiknya diproses manual lewat menu Approval User.
-1b. **Menu Manager kini 7 tile:** Approval User & Log Aktivitas ditambahkan pada 26 Sep 2026 (UI-01 menuntut 7 menu).
+1b. **Menu Manager kini 7 tile:** Approval User & Log Aktivitas ditambahkan pada 26 Sep 2026 — diverifikasi di **UI-03** (bukan UI-01; UI-01 menguji tampilan form login).
 2. **AUTH-11 (rate limit):** gunakan user dummy `QA-RATE` agar akun `AAA` dkk. tidak terkunci 15 menit (kunci = IP + username). Jika terkunci, tunggu 15 menit atau restart server.
 3. **Rekap/MON multi-user:** RBAC-14 menggunakan data asli `AAA` — jumlah pasti tergantung DB, yang penting hanya milik `AAA` yang tampil.
 4. **Data no_registrasi contoh:** berasal dari seed; bila tidak ada di DB Anda, salin dari baris yang statusnya sama di menu **Approval BQ** (login Supervisor/Officer/Manager).
@@ -536,11 +562,11 @@
 | MON | 4 | MON-01, MON-02, MON-03, MON-09 |
 | REP | 3 | REP-05, REP-06, REP-07 |
 | EXP | 5 | EXP-01, EXP-04, EXP-05, EXP-06, EXP-07 |
-| UI | 14 | UI-01..UI-14 |
+| UI | 18 | UI-01..UI-18 |
 | E2E | 8 | E2E-01..E2E-08 |
-| **TOTAL** | **88** | |
+| **TOTAL** | **92** | |
 
-> Hasil terakhir (27 Sep 2026, `node run-qa-test.js`): **88 PASS · 0 FAIL · 0 SKIP**.
+> Hasil terakhir otomatis (27 Sep 2026, `node run-qa-test.js`): **88 PASS · 0 FAIL · 0 SKIP**. Tambahan 4 tes manual baru (UI-15..UI-18: tour, `?tour=off`, favicon, "Ingat saya") belum masuk runner otomatis — jalankan manual via browser.
 > Tombol hijau **"Export Hasil"** di `qa-test.html` menghasilkan file JSON berisi ringkasan + log lengkap.
 
 > Semua field input sudah disiapkan di atas. Tinggal **copy-paste data** → isi → bandingkan hasil dengan Expected.
